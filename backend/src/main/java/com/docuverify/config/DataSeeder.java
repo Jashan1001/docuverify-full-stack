@@ -74,7 +74,8 @@ public class DataSeeder implements ApplicationRunner {
                 throw new IllegalStateException("seeder.institution.domain cannot be blank");
             }
 
-            Institution institution = institutionRepository.findByDomain(institutionDomain)
+            String adminDomain = adminEmail.substring(adminEmail.indexOf("@") + 1).toLowerCase();
+            Institution institution = institutionRepository.findByDomain(adminDomain)
                     .orElse(null);
 
             User admin = User.builder()
