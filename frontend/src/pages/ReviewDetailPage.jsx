@@ -116,7 +116,7 @@ export default function ReviewDetailPage() {
             ['Date', doc.createdAt ? format(new Date(doc.createdAt), 'dd MMM yyyy, HH:mm') : '—'],
           ].map(([label, val]) => (
             <div key={label} className="px-5 py-4">
-              <div className="font-mono text-[10px] text-muted tracking-widest uppercase">{label}</div>
+              <div className="font-mono text-xs font-black text-ink tracking-widest uppercase">{label}</div>
               <div className="font-mono text-sm text-ink mt-1 truncate">{val}</div>
             </div>
           ))}

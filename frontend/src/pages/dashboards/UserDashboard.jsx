@@ -44,7 +44,7 @@ export default function UserDashboard() {
     <div className="animate-fadeUp">
       <div className="flex items-start justify-between mb-10">
         <div>
-          <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">— My Workspace</div>
+          <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-2">— My Workspace</div>
           <h1 className="page-header">Hello, {user?.fullName?.split(' ')[0]}.</h1>
           <p className="font-body text-muted mt-2 text-sm">Upload, track, and share your verified documents.</p>
         </div>
@@ -69,7 +69,7 @@ export default function UserDashboard() {
                 <span className="font-display text-2xl font-bold">{value}</span>
               </div>
               <div className="px-3 py-2">
-                <span className="font-mono text-[10px] tracking-widest uppercase text-muted">{label}</span>
+                <span className="font-mono text-xs font-bold tracking-widest uppercase text-ink/80">{label}</span>
               </div>
             </div>
           ))}
@@ -92,7 +92,7 @@ export default function UserDashboard() {
       <div>
         <div className="flex items-center justify-between mb-5">
           <div>
-            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-1">— Recent</div>
+            <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-1">— Recent</div>
             <h2 className="font-display text-2xl font-bold text-ink">My Documents</h2>
           </div>
           <Link to="/documents" className="btn-outline flex items-center gap-2 py-2 px-4 text-xs">

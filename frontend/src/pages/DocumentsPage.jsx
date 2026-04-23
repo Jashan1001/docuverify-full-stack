@@ -4,7 +4,7 @@ import { documentApi } from '../services/api'
 import StatusBadge from '../components/ui/StatusBadge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
-import { FileText, Upload, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FileText, Upload, ArrowRight, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -206,11 +206,30 @@ function DocumentCard({ doc, index, onRefresh }) {
               {deleting ? 'Deleting...' : 'Delete'}
             </button>
           )}
+          <button
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              const loadingToast = toast.loading('Opening document...')
+              import('../services/api').then(({ fileApi }) => {
+                fileApi.view(doc.fileUrl)
+                  .then(() => toast.dismiss(loadingToast))
+                  .catch(() => {
+                    toast.dismiss(loadingToast)
+                    toast.error('Failed to load document')
+                  })
+              })
+            }}
+            className="btn-outline py-2 px-3 text-xs flex items-center gap-1"
+            title="View Original"
+          >
+            <Eye size={14} />
+          </button>
           <Link
             to={`/documents/${doc.id}`}
             className="btn-outline py-2 px-4 text-xs flex items-center gap-1"
           >
-            View Details <ArrowRight size={12} />
+            Details <ArrowRight size={12} />
           </Link>
         </div>
 

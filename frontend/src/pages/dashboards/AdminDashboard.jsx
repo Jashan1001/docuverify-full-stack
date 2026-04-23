@@ -71,7 +71,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between mb-10">
         <div>
-          <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">— Platform Admin</div>
+          <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-2">— Platform Admin</div>
           <h1 className="page-header">Admin Panel</h1>
           <p className="font-body text-muted mt-2 text-sm">Full platform control — institutions, users, and oversight.</p>
         </div>
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
                 <span className="font-display text-3xl font-bold">{value}</span>
               </div>
               <div className="px-4 py-3">
-                <div className="font-mono text-[10px] tracking-widest uppercase text-muted">{label}</div>
+                <div className="font-mono text-xs font-bold tracking-widest uppercase text-ink/80">{label}</div>
                 {sub && <div className="font-mono text-xs text-muted mt-0.5">{sub}</div>}
               </div>
             </div>
@@ -108,7 +108,7 @@ export default function AdminDashboard() {
       <div className="mb-12">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-1">— Tenants</div>
+            <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-1">— Tenants</div>
             <h2 className="font-display text-2xl font-bold text-ink">Institutions</h2>
           </div>
           <div className="flex gap-2">
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
         {showCreateForm && (
           <form onSubmit={handleCreateInstitution}
             className="border-3 border-accent bg-accent/5 p-6 mb-5 shadow-brutal-accent animate-fadeUp">
-            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-4">— New Institution</div>
+            <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-4">— New Institution</div>
             <div className="grid md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="label">Institution Name</label>
@@ -178,11 +178,11 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-2 divide-x-3 divide-ink">
                 <div className="px-4 py-2.5">
-                  <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Users</div>
+                  <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase">Users</div>
                   <div className="font-mono text-sm text-ink font-medium">{inst.userCount}</div>
                 </div>
                 <div className="px-4 py-2.5">
-                  <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Documents</div>
+                  <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase">Documents</div>
                   <div className="font-mono text-sm text-ink font-medium">{inst.documentCount}</div>
                 </div>
               </div>
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
       <div>
         <div className="flex items-center justify-between mb-5">
           <div>
-            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-1">— Access Control</div>
+            <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-1">— Access Control</div>
             <h2 className="font-display text-2xl font-bold text-ink">Users</h2>
           </div>
           <Link to="/admin/users" className="btn-outline flex items-center gap-2 py-2 px-4 text-xs">
@@ -207,7 +207,7 @@ export default function AdminDashboard() {
           {/* Table header */}
           <div className="grid grid-cols-5 bg-ink text-paper border-b-3 border-ink">
             {['Name', 'Email', 'Role', 'Institution', 'Status'].map((h) => (
-              <div key={h} className="px-4 py-3 font-mono text-[10px] tracking-widest uppercase">{h}</div>
+              <div key={h} className="px-4 py-3 font-mono text-xs font-black tracking-widest uppercase">{h}</div>
             ))}
           </div>
           {users.map((u, i) => (

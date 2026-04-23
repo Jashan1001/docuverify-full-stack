@@ -35,7 +35,7 @@ export default function VerifierDashboard() {
     <div className="animate-fadeUp">
       <div className="flex items-start justify-between mb-10">
         <div>
-          <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">— Verifier Panel</div>
+          <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-2">— Verifier Panel</div>
           <h1 className="page-header">Review Dashboard</h1>
           <p className="font-body text-muted mt-2 text-sm">Manage the verification queue for your institution.</p>
         </div>
@@ -69,7 +69,7 @@ export default function VerifierDashboard() {
               <span className="font-display text-3xl font-bold">{stats.queueSize}</span>
             </div>
             <div className="px-4 py-3">
-              <div className="font-mono text-[10px] tracking-widest uppercase text-muted">In Queue</div>
+              <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase">In Queue</div>
               {stats.urgentCount > 0 && (
                 <div className="font-mono text-xs text-danger mt-1">{stats.urgentCount} urgent</div>
               )}
@@ -82,7 +82,7 @@ export default function VerifierDashboard() {
               <span className="font-display text-3xl font-bold">{stats.totalApproved}</span>
             </div>
             <div className="px-4 py-3">
-              <div className="font-mono text-[10px] tracking-widest uppercase text-muted">Total Approved</div>
+              <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase">Total Approved</div>
               <div className="font-mono text-xs text-success mt-1">+{stats.approvedToday} today</div>
             </div>
           </div>
@@ -93,7 +93,7 @@ export default function VerifierDashboard() {
               <span className="font-display text-3xl font-bold">{stats.totalRejected}</span>
             </div>
             <div className="px-4 py-3">
-              <div className="font-mono text-[10px] tracking-widest uppercase text-muted">Total Rejected</div>
+              <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase">Total Rejected</div>
               <div className="font-mono text-xs text-danger mt-1">+{stats.rejectedToday} today</div>
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function VerifierDashboard() {
       <div>
         <div className="flex items-center justify-between mb-5">
           <div>
-            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-1">— Needs Attention</div>
+            <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-1">— Needs Attention</div>
             <h2 className="font-display text-2xl font-bold text-ink">Review Queue</h2>
           </div>
           <Link to="/review" className="btn-outline flex items-center gap-2 py-2 px-4 text-xs">

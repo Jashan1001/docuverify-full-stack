@@ -77,13 +77,16 @@ export default function LoginPage() {
 
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <div className="mb-10">
-            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-3">
+          <div className="mb-12">
+            <div className="font-mono text-xs font-bold text-accent tracking-[0.2em] uppercase mb-4">
               — Authenticate
             </div>
-            <h1 className="font-display text-5xl font-bold text-ink leading-tight">
-              Sign In
+            <h1 className="page-header">
+              <span className="premium-heading">Sign In</span>
             </h1>
+            <p className="font-body text-muted mt-4 text-sm max-w-xs">
+              Access your document vault and verification dashboard.
+            </p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

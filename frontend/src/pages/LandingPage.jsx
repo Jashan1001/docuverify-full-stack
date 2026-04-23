@@ -27,7 +27,10 @@ export default function LandingPage() {
       <main className="flex-1">
         <section className="grid-cross border-b-3 border-ink py-20 md:py-32 px-6 relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center relative z-10 animate-fadeUp">
-            <div className="inline-block bg-accent px-4 py-1.5 border-3 border-ink shadow-brutal-sm mb-8 rotate-[-2deg]">
+            <div 
+              className="inline-block bg-accent px-4 py-1.5 border-3 border-ink mb-8 rotate-[-2deg]"
+              style={{ boxShadow: '2px 2px 0px #0D0D0D' }}
+            >
               <span className="font-mono text-xs font-bold uppercase tracking-widest text-ink">
                 Tamper-Proof Platform
               </span>

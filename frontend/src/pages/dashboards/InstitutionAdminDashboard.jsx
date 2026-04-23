@@ -34,7 +34,7 @@ export default function InstitutionAdminDashboard() {
     <div className="animate-fadeUp">
       <div className="flex items-start justify-between mb-10">
         <div>
-          <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">— Institution Admin</div>
+          <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-2">— Institution Admin</div>
           <h1 className="page-header">{stats?.institutionName || 'Institution'}</h1>
           <p className="font-body text-muted mt-2 text-sm">Manage your institution's documents and team.</p>
         </div>
@@ -60,7 +60,7 @@ export default function InstitutionAdminDashboard() {
                 <span className="font-display text-2xl font-bold">{value}</span>
               </div>
               <div className="px-3 py-2">
-                <span className="font-mono text-[10px] tracking-widest uppercase text-muted">{label}</span>
+                <span className="font-mono text-xs font-bold tracking-widest uppercase text-ink/80">{label}</span>
               </div>
             </div>
           ))}
@@ -72,7 +72,7 @@ export default function InstitutionAdminDashboard() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="font-mono text-xs text-muted tracking-widest uppercase mb-1">— Queue</div>
+              <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-1">— Queue</div>
               <h2 className="font-display text-xl font-bold text-ink">Pending Review</h2>
             </div>
             <Link to="/review" className="btn-outline py-2 px-4 text-xs flex items-center gap-1">
@@ -103,7 +103,7 @@ export default function InstitutionAdminDashboard() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="font-mono text-xs text-muted tracking-widest uppercase mb-1">— Team</div>
+              <div className="font-mono text-xs font-bold text-ink/80 tracking-widest uppercase mb-1">— Team</div>
               <h2 className="font-display text-xl font-bold text-ink">Members</h2>
             </div>
             <Link to="/institution/members" className="btn-outline py-2 px-4 text-xs flex items-center gap-1">

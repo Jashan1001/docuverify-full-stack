@@ -80,24 +80,44 @@ export default function DocumentDetailPage() {
             ['Institution', doc.institutionName],
           ].map(([label, val]) => (
             <div key={label} className="px-5 py-4">
-              <div className="font-mono text-[10px] text-muted tracking-widest uppercase">{label}</div>
+              <div className="font-mono text-xs font-black text-ink tracking-widest uppercase">{label}</div>
               <div className="font-mono text-sm text-ink mt-1 truncate">{val}</div>
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-2 divide-x-3 divide-ink">
+        <div className="grid grid-cols-2 divide-x-3 divide-ink border-b-3 border-ink">
           <div className="px-5 py-4">
-            <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Uploaded</div>
+            <div className="font-mono text-xs font-black text-ink tracking-widest uppercase">Uploaded</div>
             <div className="font-mono text-sm text-ink mt-1">
               {doc.createdAt ? format(new Date(doc.createdAt), 'dd MMM yyyy, HH:mm') : '—'}
             </div>
           </div>
           <div className="px-5 py-4">
-            <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Last Updated</div>
+            <div className="font-mono text-xs font-black text-ink tracking-widest uppercase">Last Updated</div>
             <div className="font-mono text-sm text-ink mt-1">
               {doc.updatedAt ? format(new Date(doc.updatedAt), 'dd MMM yyyy, HH:mm') : '—'}
             </div>
           </div>
+        </div>
+
+        {/* View Action */}
+        <div className="p-5 bg-surface-1">
+          <button
+            onClick={() => {
+              const loadingToast = toast.loading('Opening document...')
+              import('../services/api').then(({ fileApi }) => {
+                fileApi.view(doc.fileUrl)
+                  .then(() => toast.dismiss(loadingToast))
+                  .catch(() => {
+                    toast.dismiss(loadingToast)
+                    toast.error('Failed to load document. Please check your permissions.')
+                  })
+              })
+            }}
+            className="btn-primary w-full flex items-center justify-center gap-3"
+          >
+            <ExternalLink size={16} /> View Original Document ↗
+          </button>
         </div>
       </div>
 
