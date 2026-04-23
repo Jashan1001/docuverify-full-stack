@@ -17,6 +17,26 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
+# If a backend/.env file exists, source it so env vars are available
+if [ -f "backend/.env" ]; then
+    echo -e "${BLUE}Loading backend/.env into environment...${NC}"
+    set -a
+    # shellcheck disable=SC1090
+    . backend/.env
+    set +a
+fi
+
+# Ensure JWT secret is available for local development
+if [ -z "$JWT_SECRET" ]; then
+    echo -e "${BLUE}No JWT_SECRET found. Generating a temporary secret for development...${NC}"
+    if command -v openssl &> /dev/null; then
+        export JWT_SECRET=$(openssl rand -base64 32)
+    else
+        export JWT_SECRET=$(head -c 32 /dev/urandom | base64)
+    fi
+    echo -e "${GREEN}JWT_SECRET set for this session (development only).${NC}"
+fi
+
 # Start Backend
 echo -e "${GREEN}2. Starting Backend (Spring Boot)...${NC}"
 cd backend || exit
