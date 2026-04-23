@@ -26,6 +26,7 @@ export default {
       boxShadow: {
         'brutal': '4px 4px 0px #0D0D0D',
         'brutal-lg': '6px 6px 0px #0D0D0D',
+        'brutal-sm': '2px 2px 0px #0D0D0D',
         'brutal-accent': '4px 4px 0px #C8922A',
         'brutal-inset': 'inset 3px 3px 0px #0D0D0D',
       },
