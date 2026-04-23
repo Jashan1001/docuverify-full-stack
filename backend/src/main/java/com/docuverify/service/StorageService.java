@@ -42,12 +42,26 @@ public class StorageService {
     }
 
     public Path resolveFilePath(String institutionId, String filename) {
-        return Paths.get(uploadDir, institutionId, filename);
+        Path basePath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path resolvedPath = basePath.resolve(institutionId).resolve(filename).normalize();
+        
+        if (!resolvedPath.startsWith(basePath)) {
+            throw new SecurityException("Path traversal attempt detected");
+        }
+        return resolvedPath;
     }
 
     public String computeSha256(MultipartFile file) throws IOException, NoSuchAlgorithmException {
+        return computeSha256(file.getBytes());
+    }
+
+    public String computeSha256(Path filePath) throws IOException, NoSuchAlgorithmException {
+        return computeSha256(Files.readAllBytes(filePath));
+    }
+
+    private String computeSha256(byte[] bytes) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(file.getBytes());
+        byte[] hash = digest.digest(bytes);
         return HexFormat.of().formatHex(hash);
     }
 

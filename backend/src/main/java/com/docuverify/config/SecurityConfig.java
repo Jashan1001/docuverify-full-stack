@@ -42,7 +42,6 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/api/public/**",
-            "/api/files/**",   // serve uploaded files publicly
             "/v3/api-docs/**",
             "/swagger-ui/**"
     };

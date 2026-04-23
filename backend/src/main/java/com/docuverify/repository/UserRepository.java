@@ -27,4 +27,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.institution = :institution AND u.role IN ('ROLE_VERIFIER', 'ROLE_INSTITUTION_ADMIN')")
     long countStaffByInstitution(Institution institution);
+
+    @Query("SELECT u.institution.id, COUNT(u) FROM User u WHERE u.institution.id IN :institutionIds GROUP BY u.institution.id")
+    List<Object[]> countUsersByInstitutionIds(@org.springframework.data.repository.query.Param("institutionIds") List<UUID> institutionIds);
 }

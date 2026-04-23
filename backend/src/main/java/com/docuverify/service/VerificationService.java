@@ -27,6 +27,7 @@ public class VerificationService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final DocumentService documentService;
+    private final StorageService storageService;
 
     /**
      * State machine: UNDER_REVIEW → APPROVED
@@ -89,7 +90,6 @@ public class VerificationService {
      * Public endpoint — no auth required.
      * Verifies document by its unique verificationToken (used in QR codes / share links).
      */
-    @Transactional
     public PublicVerificationResponse verifyPublicly(String token, String clientIp) {
         Document doc = documentRepository.findByVerificationToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found for this verification link"));
@@ -107,13 +107,27 @@ public class VerificationService {
 
         LocalDateTime verifiedAt = isApproved && doc.getUpdatedAt() != null ? doc.getUpdatedAt() : null;
 
+        boolean tamperDetected = false;
+        try {
+            String filename = doc.getFileUrl().substring(doc.getFileUrl().lastIndexOf("/") + 1);
+            java.nio.file.Path filePath = storageService.resolveFilePath(doc.getInstitution().getId().toString(), filename);
+            String computedHash = storageService.computeSha256(filePath);
+            if (!computedHash.equals(doc.getFileHash())) {
+                tamperDetected = true;
+                log.warn("Tamper detected for document {}: stored hash {} != computed hash {}", doc.getId(), doc.getFileHash(), computedHash);
+            }
+        } catch (Exception e) {
+            log.error("Failed to verify document hash for document {}", doc.getId(), e);
+            tamperDetected = true;
+        }
+
         return PublicVerificationResponse.builder()
                 .title(doc.getTitle())
                 .status(doc.getStatus())
                 .institutionName(doc.getInstitution().getName())
                 .uploadedBy(doc.getUploadedBy().getFullName())
                 .verifiedAt(verifiedAt)
-                .tamperDetected(false)
+                .tamperDetected(tamperDetected)
                 .message(message)
                 .build();
     }

@@ -18,11 +18,13 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    console.error(
-      "API error:",
-      error.response?.status,
-      error.response?.data?.message || error.message,
-    );
+    if (import.meta.env.DEV) {
+      console.error(
+        "API error:",
+        error.response?.status,
+        error.response?.data?.message || error.message,
+      );
+    }
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
@@ -61,9 +63,10 @@ export const authApi = {
 };
 
 export const documentApi = {
-  upload: (formData) =>
+  upload: (formData, onUploadProgress) =>
     api.post("/documents", formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress,
     }),
   getMyDocuments: (page = 0, size = 10) =>
     api.get(`/documents/my?page=${page}&size=${size}`),

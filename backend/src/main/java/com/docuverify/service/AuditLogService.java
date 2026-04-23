@@ -16,7 +16,7 @@ public class AuditLogService {
 
     private final VerificationLogRepository logRepository;
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void log(Document document, AuditAction action, String performedBy, String ipAddress, String remarks) {
         VerificationLog entry = VerificationLog.builder()
                 .document(document)

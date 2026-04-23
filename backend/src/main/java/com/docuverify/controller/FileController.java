@@ -20,12 +20,34 @@ import java.nio.file.Path;
 public class FileController {
 
     private final StorageService storageService;
+    private final com.docuverify.repository.UserRepository userRepository;
 
     @GetMapping("/{institutionId}/{filename:.+}")
     public ResponseEntity<Resource> serveFile(
             @PathVariable String institutionId,
-            @PathVariable String filename
+            @PathVariable String filename,
+            java.security.Principal principal
     ) {
+        if (principal == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        com.docuverify.entity.User user = userRepository.findByEmail(principal.getName())
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        boolean isAdmin = user.getRole() == com.docuverify.enums.Role.ROLE_ADMIN;
+        boolean matchesInstitution = user.getInstitution() != null && 
+                                     user.getInstitution().getId().toString().equals(institutionId);
+
+        if (!isAdmin && !matchesInstitution) {
+            log.warn("Unauthorized file access attempt by {} for institution {}", principal.getName(), institutionId);
+            return ResponseEntity.status(403).build();
+        }
+
         try {
             Path filePath = storageService.resolveFilePath(institutionId, filename);
             Resource resource = new UrlResource(filePath.toUri());

@@ -111,6 +111,13 @@ public class DocumentService {
             || requestor.getRole() == Role.ROLE_ADMIN
             || requestor.getRole() == Role.ROLE_INSTITUTION_ADMIN;
 
+        if (isPrivileged && requestor.getRole() != Role.ROLE_ADMIN) {
+            if (requestor.getInstitution() == null || 
+                !requestor.getInstitution().getId().equals(doc.getInstitution().getId())) {
+                isPrivileged = false;
+            }
+        }
+
         if (!isOwner && !isPrivileged) {
             throw new AccessDeniedException("You don't have permission to view this document");
         }
@@ -224,10 +231,12 @@ public class DocumentService {
         return findDocumentOrThrow(id);
     }
 
-    private void validateFileType(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("Unsupported file type");
+    private void validateFileType(MultipartFile file) throws java.io.IOException {
+        org.apache.tika.Tika tika = new org.apache.tika.Tika();
+        String detectedType = tika.detect(file.getInputStream());
+        
+        if (detectedType == null || !ALLOWED_CONTENT_TYPES.contains(detectedType)) {
+            throw new IllegalArgumentException("Unsupported or spoofed file type. Detected: " + detectedType);
         }
     }
 }

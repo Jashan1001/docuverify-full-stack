@@ -8,10 +8,8 @@ public final class RequestIpUtil {
     }
 
     public static String getClientIp(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader != null && !xfHeader.isEmpty()) {
-            return xfHeader.split(",")[0].trim();
-        }
+        // Trusting X-Forwarded-For directly is an IP spoofing vulnerability.
+        // If behind a proxy, use Spring's server.forward-headers-strategy=framework
         return request.getRemoteAddr();
     }
 }

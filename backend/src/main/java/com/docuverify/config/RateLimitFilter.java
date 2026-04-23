@@ -43,22 +43,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         String key = buildKey(request);
-        String countStr = redisTemplate.opsForValue().get(key);
+        Long count = redisTemplate.opsForValue().increment(key);
 
-        if (countStr == null) {
-            redisTemplate.opsForValue().set(key, "1", Duration.ofSeconds(windowSeconds));
-        } else {
-            int count = Integer.parseInt(countStr);
-            if (count >= maxRequests) {
-                log.warn("Rate limit exceeded for key: {}", key);
-                response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-                response.setContentType("application/json");
-                response.getWriter().write(objectMapper.writeValueAsString(
-                    ApiResponse.error("Rate limit exceeded. Try again later."))
-                );
-                return;
-            }
-            redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            redisTemplate.expire(key, Duration.ofSeconds(windowSeconds));
+        }
+
+        if (count != null && count > maxRequests) {
+            log.warn("Rate limit exceeded for key: {}", key);
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            response.setContentType("application/json");
+            response.getWriter().write(objectMapper.writeValueAsString(
+                ApiResponse.error("Rate limit exceeded. Try again later."))
+            );
+            return;
         }
 
         filterChain.doFilter(request, response);

@@ -31,7 +31,20 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public Page<InstitutionResponse> getAllInstitutions(Pageable pageable) {
-        return institutionRepository.findAll(pageable).map(this::toInstitutionResponse);
+        Page<Institution> institutions = institutionRepository.findAll(pageable);
+        if (institutions.isEmpty()) return institutions.map(i -> toInstitutionResponse(i, 0L, 0L));
+
+        java.util.List<UUID> ids = institutions.stream().map(Institution::getId).toList();
+        
+        java.util.Map<UUID, Long> userCounts = userRepository.countUsersByInstitutionIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+                
+        java.util.Map<UUID, Long> documentCounts = documentRepository.countDocumentsByInstitutionIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+
+        return institutions.map(i -> toInstitutionResponse(i, 
+                userCounts.getOrDefault(i.getId(), 0L), 
+                documentCounts.getOrDefault(i.getId(), 0L)));
     }
 
     @Transactional
@@ -50,7 +63,7 @@ public class AdminService {
                 .build();
         Institution saved = institutionRepository.save(institution);
         log.info("Institution created: {}", saved.getName());
-        return toInstitutionResponse(saved);
+        return toInstitutionResponse(saved, 0L, 0L);
     }
 
     @Transactional
@@ -60,7 +73,9 @@ public class AdminService {
         institution.setActive(!institution.isActive());
         institutionRepository.save(institution);
         log.info("Institution {} status toggled to {}", institution.getName(), institution.isActive());
-        return toInstitutionResponse(institution);
+        long userCount = userRepository.countByInstitution(institution);
+        long docCount = documentRepository.countByInstitution(institution);
+        return toInstitutionResponse(institution, userCount, docCount);
     }
 
     // ── USER MANAGEMENT ───────────────────────────────────────────────────────
@@ -134,15 +149,15 @@ public class AdminService {
 
     // ── MAPPERS ───────────────────────────────────────────────────────────────
 
-    private InstitutionResponse toInstitutionResponse(Institution i) {
+    private InstitutionResponse toInstitutionResponse(Institution i, Long userCount, Long documentCount) {
         return InstitutionResponse.builder()
                 .id(i.getId())
                 .name(i.getName())
                 .domain(i.getDomain())
                 .contactEmail(i.getContactEmail())
                 .active(i.isActive())
-                .userCount(userRepository.countByInstitution(i))
-                .documentCount(documentRepository.countByInstitution(i))
+                .userCount(userCount)
+                .documentCount(documentCount)
                 .createdAt(i.getCreatedAt())
                 .build();
     }

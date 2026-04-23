@@ -41,18 +41,8 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (payload) => {
     const { data } = await authApi.register(payload);
-    const userData = data.data;
-    localStorage.setItem("accessToken", userData.accessToken);
-    localStorage.setItem("refreshToken", userData.refreshToken);
-    const userObj = {
-      email: userData.email,
-      fullName: userData.fullName,
-      role: userData.role,
-      institutionId: userData.institutionId,
-    };
-    localStorage.setItem("user", JSON.stringify(userObj));
-    setUser(userObj);
-    return userObj;
+    // API now returns { message: "...", data: null } for register (email verification flow)
+    return data;
   }, []);
 
   const logout = useCallback(async () => {

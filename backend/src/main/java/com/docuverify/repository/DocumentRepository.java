@@ -47,4 +47,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     // Platform-wide verified today
     @Query("SELECT COUNT(d) FROM Document d WHERE d.status = 'APPROVED' AND d.updatedAt >= :since")
     long countApprovedSince(LocalDateTime since);
+
+    @Query("SELECT d.institution.id, COUNT(d) FROM Document d WHERE d.institution.id IN :institutionIds GROUP BY d.institution.id")
+    java.util.List<Object[]> countDocumentsByInstitutionIds(@org.springframework.data.repository.query.Param("institutionIds") java.util.List<UUID> institutionIds);
 }

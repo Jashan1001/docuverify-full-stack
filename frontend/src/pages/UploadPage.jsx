@@ -51,11 +51,10 @@ export default function UploadPage() {
     if (description.trim()) formData.append('description', description.trim())
 
     try {
-      // Simulate progress
-      const interval = setInterval(() => setProgress(p => Math.min(p + 12, 85)), 200)
-      await documentApi.upload(formData)
-      clearInterval(interval)
-      setProgress(100)
+      await documentApi.upload(formData, (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        setProgress(percentCompleted)
+      })
       toast.success('Document uploaded successfully')
       setTimeout(() => navigate('/documents'), 800)
     } catch (err) {

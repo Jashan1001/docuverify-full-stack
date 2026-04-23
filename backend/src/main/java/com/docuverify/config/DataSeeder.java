@@ -26,7 +26,7 @@ public class DataSeeder implements ApplicationRunner {
     @Value("${seeder.admin.email:admin@docuverify.com}")
     private String adminEmail;
 
-    @Value("${seeder.admin.password:ChangeMe@123}")
+    @Value("${seeder.admin.password:}")
     private String adminPassword;
 
     @Value("${seeder.admin.fullName:Platform Admin}")
@@ -63,6 +63,17 @@ public class DataSeeder implements ApplicationRunner {
 
     private void seedAdmin() {
         if (!userRepository.existsByEmail(adminEmail)) {
+            if (adminPassword == null || adminPassword.isBlank() || adminPassword.length() < 12) {
+                log.error("❌ Cannot seed platform admin: SEEDER_ADMIN_PASSWORD must be at least 12 characters!");
+                throw new IllegalStateException("SEEDER_ADMIN_PASSWORD must be at least 12 characters");
+            }
+            if (adminEmail == null || !adminEmail.contains("@")) {
+                throw new IllegalStateException("seeder.admin.email must be a valid email address");
+            }
+            if (institutionDomain == null || institutionDomain.isBlank()) {
+                throw new IllegalStateException("seeder.institution.domain cannot be blank");
+            }
+
             Institution institution = institutionRepository.findByDomain(institutionDomain)
                     .orElse(null);
 
@@ -76,7 +87,6 @@ public class DataSeeder implements ApplicationRunner {
                     .build();
             userRepository.save(admin);
             log.info("✅ Seeded platform admin: {}", adminEmail);
-            log.info("⚠️  Change the admin password immediately in production!");
         }
     }
 }

@@ -2,7 +2,7 @@
 
 DocuVerify is a full-stack document verification platform built with Spring Boot (Java 21) and React (Vite). It utilizes a modern neo-brutalist aesthetic and cryptographic SHA-256 hashing to ensure document immutability and trust.
 
-## 🚀 Seeded Admin Credentials
+## Seeded Admin Credentials
 
 The platform automatically seeds an initial platform administrator account upon first backend startup. You can use these credentials to access the administrative dashboard, create institutions, and assign roles to other users.
 
