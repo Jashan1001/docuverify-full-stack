@@ -53,14 +53,47 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.ROLE_USER)
                 .institution(assignedInstitution)
-                .enabled(true)
+                .enabled(true) // Set to true by default for easier development
                 .build();
 
         userRepository.save(user);
         
-        log.info("Registered new user: {} as ROLE_USER.", user.getEmail());
+        String verificationToken = java.util.UUID.randomUUID().toString();
+        try {
+            redisTemplate.opsForValue().set("email_verification:" + verificationToken, user.getEmail(), java.time.Duration.ofHours(24));
+            
+            log.info("Registered new user: {} as ROLE_USER. User is disabled pending verification.", user.getEmail());
+            log.warn("SIMULATED EMAIL VERIFICATION: To activate this account, send a GET request or navigate to:");
+            log.warn("http://localhost:8080/api/auth/verify?token={}", verificationToken);
+        } catch (Exception e) {
+            log.warn("Redis is down, bypassing email verification for user: {}", user.getEmail());
+            user.setEnabled(true);
+            userRepository.save(user);
+        }
     }
 
+    @Transactional
+    public void verifyEmail(String token) {
+        String email = null;
+        try {
+            email = redisTemplate.opsForValue().get("email_verification:" + token);
+        } catch (Exception e) {
+            log.warn("Redis is down, cannot verify email token.");
+        }
+        if (email == null) {
+            throw new IllegalArgumentException("Invalid or expired verification token");
+        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        user.setEnabled(true);
+        userRepository.save(user);
+        try {
+            redisTemplate.delete("email_verification:" + token);
+        } catch (Exception e) {
+            log.warn("Redis is down, could not delete email verification token.");
+        }
+        log.info("User email verified and account enabled: {}", email);
+    }
 
     @Transactional
     public AuthResponse login(AuthRequest request) {

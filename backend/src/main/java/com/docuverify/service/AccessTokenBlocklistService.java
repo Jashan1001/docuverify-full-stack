@@ -26,11 +26,20 @@ public class AccessTokenBlocklistService {
         if (seconds <= 0) {
             return;
         }
-        redisTemplate.opsForValue().set(BLACKLIST_PREFIX + token, "1", Duration.ofSeconds(seconds));
-        log.info("Access token blacklisted for {} seconds", seconds);
+        try {
+            redisTemplate.opsForValue().set(BLACKLIST_PREFIX + token, "1", Duration.ofSeconds(seconds));
+            log.info("Access token blacklisted for {} seconds", seconds);
+        } catch (Exception e) {
+            log.warn("Failed to blacklist token due to Redis error: {}", e.getMessage());
+        }
     }
 
     public boolean isBlacklisted(String token) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
+        } catch (Exception e) {
+            log.warn("Failed to check token blacklist due to Redis error: {}", e.getMessage());
+            return false;
+        }
     }
 }

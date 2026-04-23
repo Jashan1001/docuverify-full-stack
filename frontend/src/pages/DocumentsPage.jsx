@@ -20,7 +20,7 @@ export default function DocumentsPage() {
   const fetchDocs = async (p = 0) => {
     setLoading(true)
     try {
-      const res = await documentApi.getMyDocuments(p, 8, filter === 'ALL' ? '' : filter)
+      const res = await documentApi.getMyDocuments(p, 8)
       const data = res.data.data
       setDocs(data.content || [])
       setTotalPages(data.totalPages || 1)
@@ -30,12 +30,9 @@ export default function DocumentsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchDocs(page) }, [page, filter])
+  useEffect(() => { fetchDocs(page) }, [page])
 
-  const handleFilterChange = (f) => {
-    setFilter(f)
-    setPage(0)
-  }
+  const filtered = filter === 'ALL' ? docs : docs.filter(d => d.status === filter)
 
   return (
     <div className="animate-fadeUp">
@@ -55,7 +52,7 @@ export default function DocumentsPage() {
         {STATUS_FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => handleFilterChange(f)}
+            onClick={() => setFilter(f)}
             className={`font-mono text-xs tracking-widest uppercase px-4 py-2 border-3 transition-all duration-150 ${
               filter === f
                 ? 'bg-ink text-paper border-ink shadow-brutal'
@@ -69,7 +66,7 @@ export default function DocumentsPage() {
 
       {loading ? (
         <LoadingSpinner text="Fetching documents..." />
-      ) : docs.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<FileText size={48} />}
           title="No documents found"
@@ -79,7 +76,7 @@ export default function DocumentsPage() {
       ) : (
         <>
           <div className="grid gap-4">
-            {docs.map((doc, i) => (
+            {filtered.map((doc, i) => (
               <DocumentCard key={doc.id} doc={doc} index={i} onRefresh={() => fetchDocs(page)} />
             ))}
           </div>

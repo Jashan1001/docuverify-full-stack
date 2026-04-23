@@ -59,15 +59,10 @@ public class DocumentController {
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getMyDocuments(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String status
+            @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        DocumentStatus statusFilter = null;
-        if (status != null && !status.isBlank()) {
-            statusFilter = DocumentStatus.valueOf(status);
-        }
-        Page<DocumentResponse> docs = documentService.getMyDocuments(userDetails.getUsername(), pageable, statusFilter);
+        Page<DocumentResponse> docs = documentService.getMyDocuments(userDetails.getUsername(), pageable);
         return ResponseEntity.ok(ApiResponse.success("Documents fetched", docs));
     }
 

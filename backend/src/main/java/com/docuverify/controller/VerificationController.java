@@ -3,6 +3,7 @@ package com.docuverify.controller;
 import com.docuverify.dto.ApiResponse;
 import com.docuverify.dto.DocumentResponse;
 import com.docuverify.dto.VerificationRequest;
+import com.docuverify.entity.VerificationLog;
 import com.docuverify.service.AuditLogService;
 import com.docuverify.service.DocumentService;
 import com.docuverify.service.VerificationService;
@@ -68,11 +69,11 @@ public class VerificationController {
      */
     @GetMapping("/logs/{documentId}")
     @PreAuthorize("hasAnyRole('VERIFIER', 'ADMIN', 'INSTITUTION_ADMIN')")
-    public ResponseEntity<ApiResponse<List<com.docuverify.dto.VerificationLogResponse>>> getLogs(
+    public ResponseEntity<ApiResponse<List<VerificationLog>>> getLogs(
             @PathVariable UUID documentId
     ) {
         var doc = documentService.findByIdRaw(documentId);
-        List<com.docuverify.dto.VerificationLogResponse> logs = auditLogService.getLogsForDocument(doc);
+        List<VerificationLog> logs = auditLogService.getLogsForDocument(doc);
         return ResponseEntity.ok(ApiResponse.success("Audit logs fetched", logs));
     }
 }

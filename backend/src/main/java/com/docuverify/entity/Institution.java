@@ -32,6 +32,7 @@ public class Institution {
     @Column(nullable = false)
     private String contactEmail;
 
+    @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
 

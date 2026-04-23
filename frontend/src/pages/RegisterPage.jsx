@@ -16,7 +16,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await register(form)
-      toast.success('Registration successful! Please check the server logs to verify your email.')
+      toast.success('Registration successful! You can now log in.')
       navigate('/login')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed')

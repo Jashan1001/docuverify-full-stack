@@ -21,7 +21,6 @@ public class FileController {
 
     private final StorageService storageService;
     private final com.docuverify.repository.UserRepository userRepository;
-    private final com.docuverify.repository.DocumentRepository documentRepository;
 
     @GetMapping("/{institutionId}/{filename:.+}")
     public ResponseEntity<Resource> serveFile(
@@ -46,21 +45,6 @@ public class FileController {
 
         if (!isAdmin && !matchesInstitution) {
             log.warn("Unauthorized file access attempt by {} for institution {}", principal.getName(), institutionId);
-            return ResponseEntity.status(403).build();
-        }
-
-        com.docuverify.entity.Document document = documentRepository.findByFileUrlEndingWith(filename).orElse(null);
-        if (document == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        boolean isOwner = document.getUploadedBy().getId().equals(user.getId());
-        boolean isPrivileged = user.getRole() == com.docuverify.enums.Role.ROLE_VERIFIER ||
-                               user.getRole() == com.docuverify.enums.Role.ROLE_INSTITUTION_ADMIN ||
-                               isAdmin;
-
-        if (!isOwner && !isPrivileged) {
-            log.warn("Unauthorized document access attempt by {} for document {}", principal.getName(), filename);
             return ResponseEntity.status(403).build();
         }
 

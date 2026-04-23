@@ -16,7 +16,7 @@ public class AuditLogService {
 
     private final VerificationLogRepository logRepository;
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional
     public void log(Document document, AuditAction action, String performedBy, String ipAddress, String remarks) {
         VerificationLog entry = VerificationLog.builder()
                 .document(document)
@@ -29,16 +29,7 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<com.docuverify.dto.VerificationLogResponse> getLogsForDocument(Document document) {
-        return logRepository.findByDocumentOrderByTimestampDesc(document).stream()
-                .map(log -> com.docuverify.dto.VerificationLogResponse.builder()
-                        .id(log.getId())
-                        .action(log.getAction().name())
-                        .performedBy(log.getPerformedBy())
-                        .ipAddress(log.getIpAddress())
-                        .remarks(log.getRemarks())
-                        .timestamp(log.getTimestamp())
-                        .build())
-                .collect(java.util.stream.Collectors.toList());
+    public List<VerificationLog> getLogsForDocument(Document document) {
+        return logRepository.findByDocumentOrderByTimestampDesc(document);
     }
 }

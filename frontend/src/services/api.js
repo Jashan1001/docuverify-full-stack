@@ -68,8 +68,8 @@ export const documentApi = {
       headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress,
     }),
-  getMyDocuments: (page = 0, size = 10, status = "") =>
-    api.get(`/documents/my?page=${page}&size=${size}${status ? "&status=" + status : ""}`),
+  getMyDocuments: (page = 0, size = 10) =>
+    api.get(`/documents/my?page=${page}&size=${size}`),
   getById: (id) => api.get(`/documents/${id}`),
   submitForReview: (id) => api.patch(`/documents/${id}/submit`),
   delete: (id) => api.delete(`/documents/${id}`),
@@ -111,6 +111,25 @@ export const adminApi = {
 
 export const publicApi = {
   verify: (token) => axios.get(`${baseURL}/public/verify/${token}`),
+};
+
+export const fileApi = {
+  download: async (url, fileName) => {
+    const response = await api.get(url, { responseType: 'blob' });
+    const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.setAttribute('download', fileName || 'document');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  },
+  view: async (url) => {
+    const response = await api.get(url, { responseType: 'blob' });
+    const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }));
+    window.open(blobUrl, '_blank');
+  }
 };
 
 export default api;

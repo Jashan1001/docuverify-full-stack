@@ -123,14 +123,22 @@ export default function ReviewDetailPage() {
         </div>
 
         <div className="p-5">
-          <a
-            href={`${import.meta.env.VITE_API_BASE_URL || ''}${doc.fileUrl}`}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            onClick={() => {
+              const loadingToast = toast.loading('Fetching document...');
+              import('../services/api').then(({ fileApi }) => {
+                fileApi.view(doc.fileUrl)
+                  .then(() => toast.dismiss(loadingToast))
+                  .catch(() => {
+                    toast.dismiss(loadingToast);
+                    toast.error('Failed to load document');
+                  });
+              });
+            }}
             className="btn-outline inline-flex items-center gap-2 text-xs py-2 px-4"
           >
             <FileText size={12} /> View Original Document ↗
-          </a>
+          </button>
         </div>
       </div>
 

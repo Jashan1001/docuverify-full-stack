@@ -25,8 +25,9 @@ CREATE INDEX idx_users_email ON users(email);
 
 CREATE TABLE refresh_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    token VARCHAR(255) NOT NULL UNIQUE,
+    token VARCHAR(512) NOT NULL UNIQUE,
     expiry_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT false,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -55,7 +56,7 @@ CREATE INDEX idx_documents_status ON documents(status);
 CREATE TABLE verification_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    action VARCHAR(50) NOT NULL CHECK (action IN ('UPLOADED', 'SUBMITTED_FOR_REVIEW', 'APPROVED', 'REJECTED', 'PUBLIC_VERIFIED')),
+    action VARCHAR(50) NOT NULL CHECK (action IN ('UPLOADED', 'SUBMITTED_FOR_REVIEW', 'APPROVED', 'REJECTED', 'PUBLIC_VERIFIED', 'VIEWED', 'DELETED')),
     performed_by VARCHAR(255),
     ip_address VARCHAR(255),
     remarks VARCHAR(1000),
