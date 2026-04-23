@@ -44,7 +44,8 @@ public class AuthService {
 
         String emailDomain = request.getEmail().substring(request.getEmail().indexOf("@") + 1).toLowerCase();
         
-        Institution assignedInstitution = institutionRepository.findByDomain(emailDomain).orElse(null);
+        Institution assignedInstitution = institutionRepository.findByDomain(emailDomain)
+                .orElseGet(() -> institutionRepository.findByName("Default Institution").orElse(null));
 
         User user = User.builder()
                 .fullName(request.getFullName())

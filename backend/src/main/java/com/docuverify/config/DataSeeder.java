@@ -76,7 +76,7 @@ public class DataSeeder implements ApplicationRunner {
 
             String adminDomain = adminEmail.substring(adminEmail.indexOf("@") + 1).toLowerCase();
             Institution institution = institutionRepository.findByDomain(adminDomain)
-                    .orElse(null);
+                    .orElseGet(() -> institutionRepository.findByName(institutionName).orElse(null));
 
             User admin = User.builder()
                     .fullName(adminFullName)
