@@ -7,6 +7,7 @@ import com.docuverify.entity.Institution;
 import com.docuverify.entity.User;
 import com.docuverify.enums.AuditAction;
 import com.docuverify.enums.DocumentStatus;
+import com.docuverify.enums.Role;
 import com.docuverify.exception.DuplicateResourceException;
 import com.docuverify.exception.ResourceNotFoundException;
 import com.docuverify.repository.DocumentRepository;
@@ -20,12 +21,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DocumentService {
+
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
 
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
@@ -47,6 +57,8 @@ public class DocumentService {
         if (institution == null) {
             throw new IllegalStateException("User is not associated with any institution");
         }
+
+        validateFileType(file);
 
         // Compute SHA-256 hash for tamper detection & deduplication
         String fileHash = storageService.computeSha256(file);
@@ -95,8 +107,9 @@ public class DocumentService {
 
         // Users can only see their own docs unless they're verifier/admin
         boolean isOwner = doc.getUploadedBy().getEmail().equals(requestorEmail);
-        boolean isPrivileged = requestor.getRole().name().contains("VERIFIER")
-                || requestor.getRole().name().contains("ADMIN");
+        boolean isPrivileged = requestor.getRole() == Role.ROLE_VERIFIER
+            || requestor.getRole() == Role.ROLE_ADMIN
+            || requestor.getRole() == Role.ROLE_INSTITUTION_ADMIN;
 
         if (!isOwner && !isPrivileged) {
             throw new AccessDeniedException("You don't have permission to view this document");
@@ -154,6 +167,35 @@ public class DocumentService {
                 .map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<DocumentResponse> getInstitutionDocuments(String requesterEmail, Pageable pageable, DocumentStatus status) {
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        boolean canViewInstitutionDocs = requester.getRole() == Role.ROLE_VERIFIER
+            || requester.getRole() == Role.ROLE_INSTITUTION_ADMIN
+            || requester.getRole() == Role.ROLE_ADMIN;
+        if (!canViewInstitutionDocs) {
+            throw new AccessDeniedException("Access denied: insufficient permissions");
+        }
+
+        Institution institution = requester.getInstitution();
+        if (institution == null) {
+            if (requester.getRole() == Role.ROLE_ADMIN) {
+                if (status == null) {
+                    return documentRepository.findAll(pageable).map(this::toResponse);
+                }
+                return documentRepository.findByStatus(status, pageable).map(this::toResponse);
+            }
+            throw new AccessDeniedException("User is not associated with any institution");
+        }
+
+        if (status == null) {
+            return documentRepository.findByInstitution(institution, pageable).map(this::toResponse);
+        }
+        return documentRepository.findByInstitutionAndStatus(institution, status, pageable).map(this::toResponse);
+    }
+
     private Document findDocumentOrThrow(UUID id) {
         return documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
@@ -180,5 +222,12 @@ public class DocumentService {
 
     public Document findByIdRaw(UUID id) {
         return findDocumentOrThrow(id);
+    }
+
+    private void validateFileType(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new IllegalArgumentException("Unsupported file type");
+        }
     }
 }

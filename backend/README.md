@@ -6,16 +6,16 @@ A production-grade Spring Boot backend for secure, tamper-proof document verific
 
 ## 🚀 Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Spring Boot 3.2 |
-| Security | Spring Security + JWT (jjwt 0.12) |
-| Database | PostgreSQL |
-| Caching / Rate Limit | Redis |
-| File Storage | AWS S3 |
-| ORM | Spring Data JPA + Hibernate |
-| Build | Maven |
-| Java | 17 |
+| Layer                | Technology                        |
+| -------------------- | --------------------------------- |
+| Framework            | Spring Boot 3.2                   |
+| Security             | Spring Security + JWT (jjwt 0.12) |
+| Database             | PostgreSQL                        |
+| Caching / Rate Limit | Redis                             |
+| File Storage         | AWS S3                            |
+| ORM                  | Spring Data JPA + Hibernate       |
+| Build                | Maven                             |
+| Java                 | 17                                |
 
 ---
 
@@ -39,6 +39,7 @@ com.docuverify
 ## ⚙️ Setup
 
 ### Prerequisites
+
 - Java 17
 - PostgreSQL 14+
 - Redis 7+
@@ -46,17 +47,20 @@ com.docuverify
 
 ### 1. Clone and configure
 
-Edit `src/main/resources/application.properties`:
+Use environment variables for secrets (recommended) or copy `src/main/resources/application-example.properties` for local setup:
 
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/docuverify
-spring.datasource.username=YOUR_PG_USER
-spring.datasource.password=YOUR_PG_PASSWORD
+DB_URL=jdbc:postgresql://localhost:5432/docuverify
+DB_USER=postgres
+DB_PASSWORD=YOUR_PG_PASSWORD
 
-aws.access-key=YOUR_ACCESS_KEY
-aws.secret-key=YOUR_SECRET_KEY
-aws.s3.bucket=YOUR_BUCKET_NAME
-aws.s3.region=ap-south-1
+JWT_SECRET=YOUR_BASE64_32BYTE_SECRET
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+
+AWS_ACCESS_KEY=YOUR_ACCESS_KEY
+AWS_SECRET_KEY=YOUR_SECRET_KEY
+AWS_S3_BUCKET=YOUR_BUCKET_NAME
+AWS_REGION=ap-south-1
 ```
 
 ### 2. Create the database
@@ -72,6 +76,12 @@ CREATE DATABASE docuverify;
 ```
 
 Server starts at `http://localhost:8080`
+
+### Maven Wrapper Notes
+
+- Use `./mvnw` (or `mvnw.cmd` on Windows) to run Maven commands with the project-pinned Maven version.
+- On first run, the wrapper downloads Maven automatically into your local `~/.m2/wrapper` cache.
+- If you prefer system Maven, `mvn spring-boot:run` also works, but `./mvnw` is recommended for consistency across machines and CI.
 
 ---
 
@@ -95,6 +105,7 @@ GET  /api/auth/me         → Get current user
 ```
 POST   /api/documents                  → Upload document (multipart)
 GET    /api/documents/my               → My documents (paginated)
+GET    /api/documents/institution      → Institution documents (optional status filter)
 GET    /api/documents/{id}             → Get by ID
 PATCH  /api/documents/{id}/submit      → Submit for review (UPLOADED → UNDER_REVIEW)
 DELETE /api/documents/{id}             → Delete (non-APPROVED only)
@@ -121,7 +132,8 @@ GET  /api/public/health                → Health check
 - **BCrypt** password hashing
 - **RBAC**: `ROLE_USER`, `ROLE_VERIFIER`, `ROLE_ADMIN`, `ROLE_INSTITUTION_ADMIN`
 - **JWT** access tokens (15 min) + refresh token rotation (7 days)
-- **Token blacklisting** on logout via DB revocation flag
+- **Refresh token revocation** on logout via DB revocation flag
+- **Access token blacklisting** on logout via Redis TTL blacklist
 - **Redis rate limiting**: 100 req/min per user (IP fallback for public endpoints)
 - **SHA-256 file hashing** for tamper detection and deduplication
 
@@ -136,6 +148,7 @@ Each `Institution` is a tenant. Users belong to institutions, and documents are 
 ## 📜 Audit Logs
 
 Every state change is immutably logged in `verification_logs`:
+
 - `UPLOADED` → `SUBMITTED_FOR_REVIEW` → `APPROVED` / `REJECTED`
 - `PUBLIC_VERIFIED` logged on every public QR scan
 - Stores: actor email, IP address, timestamp, remarks

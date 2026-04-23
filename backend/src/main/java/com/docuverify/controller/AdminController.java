@@ -63,9 +63,16 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String role) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<UserResponse> users = role != null
-                ? adminService.getUsersByRole(Role.valueOf(role), pageable)
-                : adminService.getAllUsers(pageable);
+        Page<UserResponse> users;
+        if (role != null && !role.isBlank()) {
+            try {
+                users = adminService.getUsersByRole(Role.valueOf(role), pageable);
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid role filter");
+            }
+        } else {
+            users = adminService.getAllUsers(pageable);
+        }
         return ResponseEntity.ok(ApiResponse.success("Users fetched", users));
     }
 

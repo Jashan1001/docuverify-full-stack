@@ -3,9 +3,10 @@ package com.docuverify.controller;
 import com.docuverify.dto.ApiResponse;
 import com.docuverify.dto.DocumentRequest;
 import com.docuverify.dto.DocumentResponse;
+import com.docuverify.enums.DocumentStatus;
 import com.docuverify.service.DocumentService;
+import com.docuverify.util.RequestIpUtil;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -45,7 +47,7 @@ public class DocumentController {
         request.setDescription(description);
 
         DocumentResponse response = documentService.uploadDocument(
-                request, file, userDetails.getUsername(), getClientIp(httpRequest));
+                request, file, userDetails.getUsername(), RequestIpUtil.getClientIp(httpRequest));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Document uploaded successfully", response));
     }
@@ -85,7 +87,7 @@ public class DocumentController {
             @AuthenticationPrincipal UserDetails userDetails,
             HttpServletRequest httpRequest
     ) {
-        documentService.submitForReview(id, userDetails.getUsername(), getClientIp(httpRequest));
+        documentService.submitForReview(id, userDetails.getUsername(), RequestIpUtil.getClientIp(httpRequest));
         return ResponseEntity.ok(ApiResponse.success("Document submitted for review", null));
     }
 
@@ -115,10 +117,26 @@ public class DocumentController {
         return ResponseEntity.ok(ApiResponse.success("Pending documents fetched", docs));
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        return (xfHeader != null && !xfHeader.isEmpty())
-                ? xfHeader.split(",")[0].trim()
-                : request.getRemoteAddr();
+    /**
+     * Get documents for authenticated user's institution.
+     * Optional status filter.
+     */
+    @GetMapping("/institution")
+    @PreAuthorize("hasAnyRole('VERIFIER', 'INSTITUTION_ADMIN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getInstitutionDocuments(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        DocumentStatus statusFilter = null;
+        if (status != null && !status.isBlank()) {
+            statusFilter = DocumentStatus.valueOf(status);
+        }
+        Page<DocumentResponse> docs = documentService.getInstitutionDocuments(
+                userDetails.getUsername(), pageable, statusFilter
+        );
+        return ResponseEntity.ok(ApiResponse.success("Institution documents fetched", docs));
     }
 }
