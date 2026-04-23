@@ -17,11 +17,13 @@ import java.util.UUID;
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
     Page<Document> findByUploadedBy(User user, Pageable pageable);
+    Page<Document> findByUploadedByAndStatus(User user, DocumentStatus status, Pageable pageable);
     Page<Document> findByInstitution(Institution institution, Pageable pageable);
     Page<Document> findByStatus(DocumentStatus status, Pageable pageable);
     Page<Document> findByInstitutionAndStatus(Institution institution, DocumentStatus status, Pageable pageable);
     Optional<Document> findByVerificationToken(String token);
-    boolean existsByFileHash(String fileHash);
+    boolean existsByFileHashAndStatusNot(String fileHash, DocumentStatus status);
+    Optional<Document> findByFileUrlEndingWith(String suffix);
 
     long countByUploadedBy(User user);
     long countByUploadedByAndStatus(User user, DocumentStatus status);

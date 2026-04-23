@@ -53,32 +53,14 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.ROLE_USER)
                 .institution(assignedInstitution)
-                .enabled(false) // Changed to false to require email verification
+                .enabled(true)
                 .build();
 
         userRepository.save(user);
         
-        String verificationToken = java.util.UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set("email_verification:" + verificationToken, user.getEmail(), java.time.Duration.ofHours(24));
-        
-        log.info("Registered new user: {} as ROLE_USER. User is disabled pending verification.", user.getEmail());
-        log.warn("SIMULATED EMAIL VERIFICATION: To activate this account, send a GET request or navigate to:");
-        log.warn("http://localhost:8080/api/auth/verify?token={}", verificationToken);
+        log.info("Registered new user: {} as ROLE_USER.", user.getEmail());
     }
 
-    @Transactional
-    public void verifyEmail(String token) {
-        String email = redisTemplate.opsForValue().get("email_verification:" + token);
-        if (email == null) {
-            throw new IllegalArgumentException("Invalid or expired verification token");
-        }
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        user.setEnabled(true);
-        userRepository.save(user);
-        redisTemplate.delete("email_verification:" + token);
-        log.info("User email verified and account enabled: {}", email);
-    }
 
     @Transactional
     public AuthResponse login(AuthRequest request) {

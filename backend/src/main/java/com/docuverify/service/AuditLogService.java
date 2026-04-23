@@ -29,7 +29,16 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<VerificationLog> getLogsForDocument(Document document) {
-        return logRepository.findByDocumentOrderByTimestampDesc(document);
+    public List<com.docuverify.dto.VerificationLogResponse> getLogsForDocument(Document document) {
+        return logRepository.findByDocumentOrderByTimestampDesc(document).stream()
+                .map(log -> com.docuverify.dto.VerificationLogResponse.builder()
+                        .id(log.getId())
+                        .action(log.getAction().name())
+                        .performedBy(log.getPerformedBy())
+                        .ipAddress(log.getIpAddress())
+                        .remarks(log.getRemarks())
+                        .timestamp(log.getTimestamp())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
     }
 }

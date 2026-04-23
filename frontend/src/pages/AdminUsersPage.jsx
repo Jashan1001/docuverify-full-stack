@@ -86,7 +86,6 @@ export default function AdminUsersPage() {
   };
 
   const needsInstitution = [
-    "ROLE_USER",
     "ROLE_VERIFIER",
     "ROLE_INSTITUTION_ADMIN",
   ].includes(assignForm.role);

@@ -41,6 +41,7 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final AuditLogService auditLogService;
+    private final org.apache.tika.Tika tika;
 
     @Transactional
     public DocumentResponse uploadDocument(
@@ -62,7 +63,7 @@ public class DocumentService {
 
         // Compute SHA-256 hash for tamper detection & deduplication
         String fileHash = storageService.computeSha256(file);
-        if (documentRepository.existsByFileHash(fileHash)) {
+        if (documentRepository.existsByFileHashAndStatusNot(fileHash, DocumentStatus.REJECTED)) {
             throw new DuplicateResourceException("This exact document has already been uploaded");
         }
 
@@ -93,10 +94,13 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> getMyDocuments(String email, Pageable pageable) {
+    public Page<DocumentResponse> getMyDocuments(String email, Pageable pageable, DocumentStatus status) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return documentRepository.findByUploadedBy(user, pageable).map(this::toResponse);
+        if (status == null) {
+            return documentRepository.findByUploadedBy(user, pageable).map(this::toResponse);
+        }
+        return documentRepository.findByUploadedByAndStatus(user, status, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -232,8 +236,7 @@ public class DocumentService {
     }
 
     private void validateFileType(MultipartFile file) throws java.io.IOException {
-        org.apache.tika.Tika tika = new org.apache.tika.Tika();
-        String detectedType = tika.detect(file.getInputStream());
+        String detectedType = tika.detect(file.getBytes());
         
         if (detectedType == null || !ALLOWED_CONTENT_TYPES.contains(detectedType)) {
             throw new IllegalArgumentException("Unsupported or spoofed file type. Detected: " + detectedType);

@@ -124,7 +124,7 @@ export default function ReviewDetailPage() {
 
         <div className="p-5">
           <a
-            href={doc.fileUrl}
+            href={`${import.meta.env.VITE_API_BASE_URL || ''}${doc.fileUrl}`}
             target="_blank"
             rel="noreferrer"
             className="btn-outline inline-flex items-center gap-2 text-xs py-2 px-4"

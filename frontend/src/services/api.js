@@ -68,8 +68,8 @@ export const documentApi = {
       headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress,
     }),
-  getMyDocuments: (page = 0, size = 10) =>
-    api.get(`/documents/my?page=${page}&size=${size}`),
+  getMyDocuments: (page = 0, size = 10, status = "") =>
+    api.get(`/documents/my?page=${page}&size=${size}${status ? "&status=" + status : ""}`),
   getById: (id) => api.get(`/documents/${id}`),
   submitForReview: (id) => api.patch(`/documents/${id}/submit`),
   delete: (id) => api.delete(`/documents/${id}`),

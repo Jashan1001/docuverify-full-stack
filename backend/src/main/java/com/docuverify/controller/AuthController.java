@@ -26,17 +26,6 @@ public class AuthController {
                 .body(ApiResponse.success("Registration successful. Please check your email/logs to verify your account.", null));
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<String> verifyEmail(@RequestParam String token) {
-        try {
-            authService.verifyEmail(token);
-            return ResponseEntity.ok("Email verified successfully. You can now log in.");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid or expired token.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Verification failed.");
-        }
-    }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
