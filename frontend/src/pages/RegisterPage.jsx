@@ -28,7 +28,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-paper grid-cross flex items-center justify-center p-8">
       <div className="w-full max-w-lg">
-        <div className="flex items-center gap-3 mb-10">
+        <Link to="/" className="flex items-center gap-3 mb-10 cursor-pointer hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 bg-ink border-3 border-ink flex items-center justify-center shadow-brutal">
             <Shield size={18} className="text-paper" />
           </div>
@@ -36,7 +36,7 @@ export default function RegisterPage() {
             <div className="font-display text-xl font-bold text-ink leading-none">DocuVerify</div>
             <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Trust Platform</div>
           </div>
-        </div>
+        </Link>
 
         <div className="mb-8">
           <div className="font-mono text-xs text-muted tracking-widest uppercase mb-3">— Create Account</div>
