@@ -2,6 +2,7 @@ package com.docuverify.config;
 
 import com.docuverify.security.CustomUserDetailsService;
 import com.docuverify.security.JwtUtil;
+import com.docuverify.service.AccessTokenBlocklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final AccessTokenBlocklistService accessTokenBlocklistService;
 
     @Override
     protected void doFilterInternal(
@@ -41,6 +43,11 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7);
+
+        if (accessTokenBlocklistService.isBlacklisted(jwt)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
             final String userEmail = jwtUtil.extractUsername(jwt);

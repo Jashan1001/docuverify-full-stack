@@ -26,7 +26,7 @@ public class DataSeeder implements ApplicationRunner {
     @Value("${seeder.admin.email:admin@docuverify.com}")
     private String adminEmail;
 
-    @Value("${seeder.admin.password:Admin@123456}")
+    @Value("${seeder.admin.password:ChangeMe@123}")
     private String adminPassword;
 
     @Value("${seeder.admin.fullName:Platform Admin}")

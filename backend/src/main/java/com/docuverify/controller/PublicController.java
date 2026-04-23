@@ -3,6 +3,7 @@ package com.docuverify.controller;
 import com.docuverify.dto.ApiResponse;
 import com.docuverify.dto.PublicVerificationResponse;
 import com.docuverify.service.VerificationService;
+import com.docuverify.util.RequestIpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,7 @@ public class PublicController {
             @PathVariable String token,
             HttpServletRequest request
     ) {
-        String clientIp = getClientIp(request);
+        String clientIp = RequestIpUtil.getClientIp(request);
         PublicVerificationResponse response = verificationService.verifyPublicly(token, clientIp);
         return ResponseEntity.ok(ApiResponse.success("Verification complete", response));
     }
@@ -37,12 +38,5 @@ public class PublicController {
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<String>> health() {
         return ResponseEntity.ok(ApiResponse.success("DocuVerify is running", "OK"));
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        return (xfHeader != null && !xfHeader.isEmpty())
-                ? xfHeader.split(",")[0].trim()
-                : request.getRemoteAddr();
     }
 }

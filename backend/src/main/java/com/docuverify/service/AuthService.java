@@ -32,6 +32,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final CustomUserDetailsService userDetailsService;
+    private final AccessTokenBlocklistService accessTokenBlocklistService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -88,10 +89,13 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String email) {
+    public void logout(String email, String accessToken) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         tokenService.revokeAllUserTokens(user);
+        if (accessToken != null && !accessToken.isBlank()) {
+            accessTokenBlocklistService.blacklist(accessToken);
+        }
         log.info("User logged out: {}", email);
     }
 

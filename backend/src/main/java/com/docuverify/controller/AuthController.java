@@ -2,6 +2,7 @@ package com.docuverify.controller;
 
 import com.docuverify.dto.*;
 import com.docuverify.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,8 +42,13 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        authService.logout(userDetails.getUsername());
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        String accessToken = (authHeader != null && authHeader.startsWith("Bearer "))
+                ? authHeader.substring(7)
+                : null;
+        authService.logout(userDetails.getUsername(), accessToken);
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
     }
 

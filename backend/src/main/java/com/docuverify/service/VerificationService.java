@@ -37,8 +37,7 @@ public class VerificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 
         if (doc.getStatus() != DocumentStatus.UNDER_REVIEW) {
-            throw new InvalidStateTransitionException(
-                    String.format("Cannot approve document in '%s' state. Must be UNDER_REVIEW.", doc.getStatus()));
+            throw new InvalidStateTransitionException("Invalid document state for this operation");
         }
 
         User verifier = userRepository.findByEmail(verifierEmail)
@@ -64,8 +63,7 @@ public class VerificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 
         if (doc.getStatus() != DocumentStatus.UNDER_REVIEW) {
-            throw new InvalidStateTransitionException(
-                    String.format("Cannot reject document in '%s' state. Must be UNDER_REVIEW.", doc.getStatus()));
+            throw new InvalidStateTransitionException("Invalid document state for this operation");
         }
 
         if (request.getRejectionReason() == null || request.getRejectionReason().isBlank()) {

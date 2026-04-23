@@ -1,5 +1,8 @@
 package com.docuverify.config;
 
+import com.docuverify.dto.ApiResponse;
+import com.docuverify.util.RequestIpUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +27,7 @@ import java.time.Duration;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${rate.limit.requests}")
     private int maxRequests;
@@ -49,9 +53,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 log.warn("Rate limit exceeded for key: {}", key);
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.setContentType("application/json");
-                response.getWriter().write("""
-                        {"error": "Rate limit exceeded. Try again later.", "status": 429}
-                        """);
+                response.getWriter().write(objectMapper.writeValueAsString(
+                    ApiResponse.error("Rate limit exceeded. Try again later."))
+                );
                 return;
             }
             redisTemplate.opsForValue().increment(key);
@@ -66,14 +70,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return "rate_limit:user:" + auth.getName();
         }
         // Fall back to IP for public/unauthenticated endpoints
-        return "rate_limit:ip:" + getClientIp(request);
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader != null && !xfHeader.isEmpty()) {
-            return xfHeader.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+        return "rate_limit:ip:" + RequestIpUtil.getClientIp(request);
     }
 }

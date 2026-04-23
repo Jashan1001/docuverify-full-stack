@@ -3,6 +3,7 @@ package com.docuverify.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.WeakKeyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -23,8 +24,15 @@ public class JwtUtil {
     private long accessTokenExpiry;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secret);
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (IllegalArgumentException | WeakKeyException ex) {
+            throw new IllegalStateException(
+                    "Invalid jwt.secret. Provide a Base64-encoded key with at least 32 bytes.",
+                    ex
+            );
+        }
     }
 
     public String generateAccessToken(UserDetails userDetails) {

@@ -7,6 +7,7 @@ import com.docuverify.entity.VerificationLog;
 import com.docuverify.service.AuditLogService;
 import com.docuverify.service.DocumentService;
 import com.docuverify.service.VerificationService;
+import com.docuverify.util.RequestIpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,7 @@ public class VerificationController {
             HttpServletRequest httpRequest
     ) {
         DocumentResponse response = verificationService.approveDocument(
-                request, userDetails.getUsername(), getClientIp(httpRequest));
+                request, userDetails.getUsername(), RequestIpUtil.getClientIp(httpRequest));
         return ResponseEntity.ok(ApiResponse.success("Document approved successfully", response));
     }
 
@@ -55,8 +56,11 @@ public class VerificationController {
             @AuthenticationPrincipal UserDetails userDetails,
             HttpServletRequest httpRequest
     ) {
+        if (request.getRejectionReason() == null || request.getRejectionReason().isBlank()) {
+            throw new IllegalArgumentException("Rejection reason is required");
+        }
         DocumentResponse response = verificationService.rejectDocument(
-                request, userDetails.getUsername(), getClientIp(httpRequest));
+                request, userDetails.getUsername(), RequestIpUtil.getClientIp(httpRequest));
         return ResponseEntity.ok(ApiResponse.success("Document rejected", response));
     }
 
@@ -71,12 +75,5 @@ public class VerificationController {
         var doc = documentService.findByIdRaw(documentId);
         List<VerificationLog> logs = auditLogService.getLogsForDocument(doc);
         return ResponseEntity.ok(ApiResponse.success("Audit logs fetched", logs));
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        return (xfHeader != null && !xfHeader.isEmpty())
-                ? xfHeader.split(",")[0].trim()
-                : request.getRemoteAddr();
     }
 }

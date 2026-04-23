@@ -15,3 +15,21 @@ backend.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Secrets / Credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+application-secret.properties
+**/application-secret.properties
+password.txt
+passwords.txt
+*.password
+*.secrets
+secrets/
+*.pem
+*.p12
+*.jks
