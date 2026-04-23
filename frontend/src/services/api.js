@@ -115,7 +115,9 @@ export const publicApi = {
 
 export const fileApi = {
   download: async (url, fileName) => {
-    const response = await api.get(url, { responseType: 'blob' });
+    // Strip /api prefix if it exists because the axios instance baseURL already includes it
+    const cleanUrl = url.startsWith('/api') ? url.replace(/^\/api/, '') : url;
+    const response = await api.get(cleanUrl, { responseType: 'blob' });
     const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = blobUrl;
@@ -126,7 +128,9 @@ export const fileApi = {
     window.URL.revokeObjectURL(blobUrl);
   },
   view: async (url) => {
-    const response = await api.get(url, { responseType: 'blob' });
+    // Strip /api prefix if it exists because the axios instance baseURL already includes it
+    const cleanUrl = url.startsWith('/api') ? url.replace(/^\/api/, '') : url;
+    const response = await api.get(cleanUrl, { responseType: 'blob' });
     const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }));
     window.open(blobUrl, '_blank');
   }
