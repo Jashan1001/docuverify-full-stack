@@ -40,15 +40,17 @@ public class AuthService {
             throw new DuplicateResourceException("Email already registered: " + request.getEmail());
         }
 
-        // Assign to Default Institution by default for seamless onboarding
-        Institution defaultInstitution = institutionRepository.findByName("Default Institution").orElse(null);
+        String emailDomain = request.getEmail().substring(request.getEmail().indexOf("@") + 1).toLowerCase();
+        
+        Institution assignedInstitution = institutionRepository.findByDomain(emailDomain)
+                .orElseGet(() -> institutionRepository.findByName("Default Institution").orElse(null));
 
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.ROLE_USER)
-                .institution(defaultInstitution)
+                .institution(assignedInstitution)
                 .enabled(true)
                 .build();
 
