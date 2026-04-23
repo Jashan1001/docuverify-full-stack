@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #F5F0E8;
+    color: #0D0D0D;
+    font-family: 'DM Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    /* Subtle paper grain texture via SVG */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background-color: #C8922A;
+    color: #F5F0E8;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #EDE8DC;
+    border-left: 1px solid #0D0D0D;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #0D0D0D;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-ink text-paper font-mono text-sm font-medium px-6 py-3 border-3 border-ink 
+           shadow-brutal transition-all duration-150 cursor-pointer
+           hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-lg
+           active:translate-x-[2px] active:translate-y-[2px] active:shadow-none
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-brutal;
+  }
+
+  .btn-outline {
+    @apply bg-transparent text-ink font-mono text-sm font-medium px-6 py-3 border-3 border-ink 
+           shadow-brutal transition-all duration-150 cursor-pointer
+           hover:bg-ink hover:text-paper hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-lg
+           active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+  }
+
+  .btn-accent {
+    @apply bg-accent text-paper font-mono text-sm font-medium px-6 py-3 border-3 border-ink 
+           shadow-brutal transition-all duration-150 cursor-pointer
+           hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-lg
+           active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-paper font-mono text-sm font-medium px-6 py-3 border-3 border-ink 
+           shadow-brutal transition-all duration-150 cursor-pointer
+           hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-lg
+           active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+  }
+
+  .card {
+    @apply bg-paper border-3 border-ink shadow-brutal p-6 
+           transition-all duration-200
+           hover:translate-x-[-3px] hover:translate-y-[-3px] hover:shadow-brutal-lg;
+  }
+
+  .card-static {
+    @apply bg-paper border-3 border-ink shadow-brutal p-6;
+  }
+
+  .input-field {
+    @apply w-full bg-paper border-3 border-ink font-mono text-sm px-4 py-3 
+           outline-none transition-all duration-150
+           focus:border-accent focus:shadow-brutal-accent
+           placeholder:text-muted;
+  }
+
+  .label {
+    @apply font-mono text-xs font-medium tracking-widest uppercase text-muted mb-2 block;
+  }
+
+  .status-badge {
+    @apply font-mono text-xs font-medium px-3 py-1 border-2 border-ink tracking-widest uppercase;
+  }
+
+  .section-rule {
+    @apply border-t-3 border-ink my-8;
+  }
+
+  .page-header {
+    @apply font-display text-4xl md:text-5xl font-bold text-ink leading-tight;
+  }
+
+  .grid-cross {
+    background-image: 
+      linear-gradient(rgba(13,13,13,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(13,13,13,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}
