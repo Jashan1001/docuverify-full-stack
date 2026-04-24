@@ -64,9 +64,6 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.sameOrigin())
                         .contentTypeOptions(Customizer.withDefaults())
-                        .httpStrictTransportSecurity(hsts -> hsts
-                                .includeSubDomains(true)
-                                .maxAgeInSeconds(31536000))
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -76,7 +73,7 @@ public class SecurityConfig {
                         // 🔒 Protected routes
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "INSTITUTION_ADMIN")
                         
-                        // Explicitly allow logs for any authenticated user (ownership check is in controller)
+                        // Audit logs: Owners and Privileged users only (checked in controller)
                         .requestMatchers("/api/verification/logs/**").authenticated()
                         .requestMatchers("/api/verification/**").hasAnyRole("VERIFIER", "ADMIN", "INSTITUTION_ADMIN")
                         
@@ -84,18 +81,19 @@ public class SecurityConfig {
                         .requestMatchers("/api/stats/institution").hasAnyRole("INSTITUTION_ADMIN", "ADMIN")
                         .requestMatchers("/api/stats/verifier").hasAnyRole("VERIFIER", "ADMIN", "INSTITUTION_ADMIN")
                         
-                        // Explicitly allow document operations for any authenticated user
-                        .requestMatchers("/api/documents/**").authenticated()
+                        // Documents: Explicitly allow for all registered roles
+                        .requestMatchers("/api/documents/**").hasAnyRole("USER", "VERIFIER", "ADMIN", "INSTITUTION_ADMIN")
 
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider());
 
-        if (rateLimitFilter != null) {
-            http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
-        }
-
+        // Important: JWT filter must run BEFORE rate limiting if rate limiting depends on user identity
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        
+        if (rateLimitFilter != null) {
+            http.addFilterAfter(rateLimitFilter, JwtFilter.class);
+        }
 
         return http.build();
     }
@@ -104,16 +102,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Support multiple origins and wildcards if needed
         config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
                 .toList());
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
+        config.setAllowedHeaders(List.of("*")); // Allow all headers for maximum compatibility with Render/Vercel
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L); // Cache preflight results for 1 hour
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
