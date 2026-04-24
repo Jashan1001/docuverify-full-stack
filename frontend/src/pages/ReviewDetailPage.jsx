@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { documentApi, verificationApi } from '../services/api'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, FileText, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -44,15 +44,18 @@ export default function ReviewDetailPage() {
         rejectionReason: action === 'reject' ? rejectionReason.trim() : undefined,
       }
       if (action === 'approve') {
-        await verificationApi.approve(payload)
+        const res = await verificationApi.approve(payload)
+        setDoc(res.data.data)
         setStamped('APPROVED')
         toast.success('Document approved')
       } else {
-        await verificationApi.reject(payload)
+        const res = await verificationApi.reject(payload)
+        setDoc(res.data.data)
         setStamped('REJECTED')
         toast.success('Document rejected')
       }
-      setTimeout(() => navigate('/review'), 2500)
+      // Increased timeout to allow user to see the redirection link
+      setTimeout(() => navigate('/review'), 6000)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Action failed')
     }
@@ -76,8 +79,8 @@ export default function ReviewDetailPage() {
 
         {/* Stamp overlay */}
         {stamped && (
-          <div className="absolute inset-0 flex items-center justify-center z-20 bg-paper/80 backdrop-blur-sm">
-            <div className={`animate-stamp border-[6px] px-8 py-6 text-center rotate-[-8deg] shadow-brutal-lg
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-paper/90 backdrop-blur-sm p-8 text-center">
+            <div className={`animate-stamp border-[6px] px-8 py-6 mb-8 rotate-[-8deg] shadow-brutal-lg
               ${stamped === 'APPROVED'
                 ? 'border-success text-success'
                 : 'border-danger text-danger'
@@ -89,6 +92,37 @@ export default function ReviewDetailPage() {
                 {stamped === 'APPROVED' ? '✓ Verified & Sealed' : '✕ Document Rejected'}
               </div>
             </div>
+
+            {stamped === 'APPROVED' && doc.verificationUrl && (
+              <div className="animate-fadeUp delay-200 flex flex-col gap-4 w-full max-w-sm">
+                <div className="font-mono text-xs text-ink font-bold uppercase tracking-widest">
+                  Live Verification Proof Created
+                </div>
+                <div className="bg-surface-1 border-3 border-ink p-3 flex items-center gap-3">
+                  <div className="flex-1 font-mono text-[10px] text-ink truncate select-all">
+                    {doc.verificationUrl}
+                  </div>
+                  <button 
+                    onClick={() => { navigator.clipboard.writeText(doc.verificationUrl); toast.success('Link copied!') }}
+                    className="text-accent hover:text-ink transition-colors"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <a 
+                  href={doc.verificationUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn-primary py-3 px-6 text-xs flex items-center justify-center gap-2"
+                >
+                  <ExternalLink size={14} /> Open Public Verification Page
+                </a>
+              </div>
+            )}
+            
+            <p className="mt-8 font-mono text-[10px] text-muted uppercase tracking-widest">
+              Returning to queue in a few seconds...
+            </p>
           </div>
         )}
 

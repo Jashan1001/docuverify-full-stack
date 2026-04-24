@@ -115,6 +115,18 @@ export const publicApi = {
 
 export const fileApi = {
   download: async (url, fileName) => {
+    // If it's a full URL (Cloudinary), open it directly
+    if (url.startsWith('http')) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('target', '_blank');
+      link.setAttribute('download', fileName || 'document');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      return;
+    }
+
     // Strip /api prefix if it exists because the axios instance baseURL already includes it
     const cleanUrl = url.startsWith('/api') ? url.replace(/^\/api/, '') : url;
     const response = await api.get(cleanUrl, { responseType: 'blob' });
@@ -128,6 +140,12 @@ export const fileApi = {
     window.URL.revokeObjectURL(blobUrl);
   },
   view: async (url) => {
+    // If it's a full URL (Cloudinary), open it directly
+    if (url.startsWith('http')) {
+      window.open(url, '_blank');
+      return;
+    }
+
     // Strip /api prefix if it exists because the axios instance baseURL already includes it
     const cleanUrl = url.startsWith('/api') ? url.replace(/^\/api/, '') : url;
     const response = await api.get(cleanUrl, { responseType: 'blob' });

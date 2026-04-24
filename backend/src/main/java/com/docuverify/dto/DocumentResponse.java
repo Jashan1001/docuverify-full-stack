@@ -19,6 +19,7 @@ public class DocumentResponse {
     private String fileUrl;
     private DocumentStatus status;
     private String verificationToken;
+    private String verificationUrl;
     private String uploadedBy;
     private String institutionName;
     private String rejectionReason;

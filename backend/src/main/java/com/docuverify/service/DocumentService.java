@@ -14,6 +14,7 @@ import com.docuverify.repository.DocumentRepository;
 import com.docuverify.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -41,6 +42,9 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final AuditLogService auditLogService;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendBaseUrl;
 
     @Transactional
     public DocumentResponse uploadDocument(
@@ -200,6 +204,11 @@ public class DocumentService {
     }
 
     public DocumentResponse toResponse(Document doc) {
+        String verificationUrl = null;
+        if (doc.getVerificationToken() != null) {
+            verificationUrl = frontendBaseUrl + "/verify/" + doc.getVerificationToken();
+        }
+
         return DocumentResponse.builder()
                 .id(doc.getId())
                 .title(doc.getTitle())
@@ -209,8 +218,8 @@ public class DocumentService {
                 .fileSize(doc.getFileSize())
                 .fileUrl(doc.getFileUrl())
                 .status(doc.getStatus())
-                // null until approved — frontend should gate on status before using this
                 .verificationToken(doc.getVerificationToken())
+                .verificationUrl(verificationUrl)
                 .uploadedBy(doc.getUploadedBy().getFullName())
                 .institutionName(doc.getInstitution().getName())
                 .rejectionReason(doc.getRejectionReason())
