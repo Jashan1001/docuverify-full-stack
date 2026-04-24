@@ -22,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.Arrays;
 import java.util.List;
@@ -29,7 +30,6 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
@@ -39,7 +39,6 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
-    // /api/files/** intentionally removed — files now require authentication
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/api/public/**",
@@ -47,9 +46,19 @@ public class SecurityConfig {
             "/swagger-ui/**"
     };
 
+    public SecurityConfig(
+            JwtFilter jwtFilter,
+            ObjectProvider<RateLimitFilter> rateLimitFilterProvider,
+            CustomUserDetailsService userDetailsService
+    ) {
+        this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilterProvider.getIfAvailable();
+        this.userDetailsService = userDetailsService;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+        http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .headers(headers -> headers
@@ -71,10 +80,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/files/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
+                .authenticationProvider(authenticationProvider());
+
+        if (rateLimitFilter != null) {
+            http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+        
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 
     @Bean

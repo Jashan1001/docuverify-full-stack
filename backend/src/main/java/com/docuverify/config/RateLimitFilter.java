@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
@@ -24,15 +25,16 @@ import java.time.Duration;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@Profile("redis")
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${rate.limit.requests}")
+    @Value("${rate.limit.requests:100}")
     private int maxRequests;
 
-    @Value("${rate.limit.window-seconds}")
+    @Value("${rate.limit.window-seconds:60}")
     private int windowSeconds;
 
     @Override

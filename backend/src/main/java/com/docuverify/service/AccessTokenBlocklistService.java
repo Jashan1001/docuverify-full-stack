@@ -3,6 +3,7 @@ package com.docuverify.service;
 import com.docuverify.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import java.util.Date;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Profile("redis")
 public class AccessTokenBlocklistService {
 
     private static final String BLACKLIST_PREFIX = "jwt:blacklist:";

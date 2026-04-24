@@ -34,7 +34,6 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final CustomUserDetailsService userDetailsService;
-    private final AccessTokenBlocklistService accessTokenBlocklistService;
 
     private static final Set<String> PERSONAL_DOMAINS = Set.of(
             "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
@@ -112,9 +111,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         tokenService.revokeAllUserTokens(user);
-        if (accessToken != null && !accessToken.isBlank()) {
-            accessTokenBlocklistService.blacklist(accessToken);
-        }
+        // Redis-based blacklisting disabled
     }
 
     @Transactional
