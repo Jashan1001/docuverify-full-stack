@@ -50,8 +50,8 @@ public class StatsService {
         LocalDateTime urgentThreshold = LocalDateTime.now().minusHours(48);
 
         long urgentCount = institution != null
-                ? documentRepository.countUrgentByInstitution(institution, urgentThreshold)
-                : documentRepository.countUrgentGlobal(urgentThreshold);
+                ? documentRepository.countUrgentByInstitution(institution, DocumentStatus.UNDER_REVIEW, urgentThreshold)
+                : documentRepository.countUrgentGlobal(DocumentStatus.UNDER_REVIEW, urgentThreshold);
 
         return VerifierStatsResponse.builder()
                 .queueSize(queueSize)
@@ -93,7 +93,7 @@ public class StatsService {
                 .totalDocuments(documentRepository.count())
                 .approvedDocuments(documentRepository.countByStatus(DocumentStatus.APPROVED))
                 .pendingDocuments(documentRepository.countByStatus(DocumentStatus.UNDER_REVIEW))
-                .verifiedToday(documentRepository.countApprovedSince(todayStart))
+                .verifiedToday(documentRepository.countApprovedSince(DocumentStatus.APPROVED, todayStart))
                 .build();
     }
 

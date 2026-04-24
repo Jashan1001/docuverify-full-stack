@@ -47,7 +47,6 @@ public class JwtUtil {
     }
 
     private String buildToken(Map<String, Object> claims, String subject, long expiry) {
-        // Using setClaims and signWith for compatibility with both JJWT 0.11.x and 0.12.x
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
@@ -71,8 +70,9 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
-        // Using parserBuilder for compatibility
-        return Jwts.parserBuilder()
+        // Using parser() which is the modern (0.12.x) and compatible way
+        // parserBuilder() is deprecated or removed in 0.12.x
+        return Jwts.parser()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
