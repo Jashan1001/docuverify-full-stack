@@ -2,6 +2,7 @@ package com.docuverify.config;
 
 import com.docuverify.security.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +23,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +42,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/api/public/**",
+            "/api/verify/**",   // ✅ added
+            "/api/files/**",    // ✅ added
             "/v3/api-docs/**",
             "/swagger-ui/**"
     };
@@ -62,22 +64,24 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .headers(headers -> headers
-                    .frameOptions(frame -> frame.sameOrigin())
-                    .contentTypeOptions(Customizer.withDefaults())
-                    .httpStrictTransportSecurity(hsts -> hsts
-                        .includeSubDomains(true)
-                        .maxAgeInSeconds(31536000))
+                        .frameOptions(frame -> frame.sameOrigin())
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+
+                        // 🔒 Protected routes
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "INSTITUTION_ADMIN")
                         .requestMatchers("/api/verification/**").hasAnyRole("VERIFIER", "ADMIN", "INSTITUTION_ADMIN")
                         .requestMatchers("/api/stats/admin").hasRole("ADMIN")
                         .requestMatchers("/api/stats/institution").hasAnyRole("INSTITUTION_ADMIN", "ADMIN")
                         .requestMatchers("/api/stats/verifier").hasAnyRole("VERIFIER", "ADMIN", "INSTITUTION_ADMIN")
-                        .requestMatchers("/api/files/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider());
@@ -85,7 +89,7 @@ public class SecurityConfig {
         if (rateLimitFilter != null) {
             http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         }
-        
+
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -94,15 +98,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+
         config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
-            .map(String::trim)
-            .filter(origin -> !origin.isEmpty())
-            .toList());
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList());
+
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 
