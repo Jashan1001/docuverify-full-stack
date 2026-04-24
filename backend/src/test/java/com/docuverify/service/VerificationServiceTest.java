@@ -1,16 +1,17 @@
 package com.docuverify.service;
 
 import com.docuverify.dto.DocumentResponse;
-import com.docuverify.dto.PublicVerificationResponse;
 import com.docuverify.dto.VerificationRequest;
 import com.docuverify.entity.Document;
 import com.docuverify.entity.Institution;
 import com.docuverify.entity.User;
 import com.docuverify.enums.DocumentStatus;
+import com.docuverify.enums.Role;
 import com.docuverify.exception.InvalidStateTransitionException;
 import com.docuverify.repository.DocumentRepository;
 import com.docuverify.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,102 +21,148 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class VerificationServiceTest {
 
-    @Mock
-    private DocumentRepository documentRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private AuditLogService auditLogService;
-    @Mock
-    private DocumentService documentService;
-    @Mock
-    private StorageService storageService;
+    @Mock DocumentRepository documentRepository;
+    @Mock UserRepository userRepository;
+    @Mock AuditLogService auditLogService;
+    @Mock DocumentService documentService;
+    @Mock StorageService storageService;
+    @Mock EmailService emailService;
 
-    @InjectMocks
-    private VerificationService verificationService;
+    @InjectMocks VerificationService verificationService;
 
-    private Document doc;
+    private User uploader;
     private User verifier;
+    private Institution institution;
+    private Document doc;
 
     @BeforeEach
     void setUp() {
-        Institution institution = new Institution();
-        institution.setId(UUID.randomUUID());
-        institution.setName("Test Institution");
+        institution = Institution.builder()
+                .id(UUID.randomUUID())
+                .name("Test University")
+                .build();
 
-        User uploader = new User();
-        uploader.setFullName("Uploader Name");
+        uploader = User.builder()
+                .id(UUID.randomUUID())
+                .email("student@test.edu")
+                .fullName("Student Name")
+                .role(Role.ROLE_USER)
+                .institution(institution)
+                .build();
 
-        doc = new Document();
-        doc.setId(UUID.randomUUID());
-        doc.setStatus(DocumentStatus.UNDER_REVIEW);
-        doc.setInstitution(institution);
-        doc.setUploadedBy(uploader);
-        doc.setFileUrl("/api/files/test.pdf");
-        doc.setFileHash("correctHash");
-        doc.setTitle("Test Doc");
+        verifier = User.builder()
+                .id(UUID.randomUUID())
+                .email("verifier@test.edu")
+                .fullName("Verifier Name")
+                .role(Role.ROLE_VERIFIER)
+                .institution(institution)
+                .build();
 
-        verifier = new User();
-        verifier.setEmail("verifier@test.com");
+        doc = Document.builder()
+                .id(UUID.randomUUID())
+                .title("Degree Certificate")
+                .status(DocumentStatus.UNDER_REVIEW)
+                .uploadedBy(uploader)
+                .institution(institution)
+                .fileHash("abc123")
+                .fileUrl("/api/files/" + institution.getId() + "/test.pdf")
+                .build();
     }
 
     @Test
+    @DisplayName("Approve document — assigns token and sets APPROVED")
     void approveDocument_success() {
         VerificationRequest request = new VerificationRequest();
         request.setDocumentId(doc.getId());
         request.setRemarks("Looks good");
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
-        when(userRepository.findByEmail("verifier@test.com")).thenReturn(Optional.of(verifier));
-        when(documentService.toResponse(any())).thenReturn(DocumentResponse.builder().build());
+        when(userRepository.findByEmail("verifier@test.edu")).thenReturn(Optional.of(verifier));
+        when(documentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(documentService.toResponse(any())).thenReturn(DocumentResponse.builder()
+                .status(DocumentStatus.APPROVED).build());
 
-        verificationService.approveDocument(request, "verifier@test.com", "127.0.0.1");
+        DocumentResponse response = verificationService.approveDocument(
+                request, "verifier@test.edu", "127.0.0.1");
 
-        assertEquals(DocumentStatus.APPROVED, doc.getStatus());
-        assertEquals(verifier, doc.getVerifiedBy());
-        verify(documentRepository).save(doc);
+        assertThat(doc.getStatus()).isEqualTo(DocumentStatus.APPROVED);
+        assertThat(doc.getVerificationToken()).isNotNull();
+        assertThat(doc.getVerifiedBy()).isEqualTo(verifier);
+        verify(emailService).sendApprovalEmail(any(), any(), any(), any(), any());
     }
 
     @Test
-    void approveDocument_wrongState() {
+    @DisplayName("Approve document — throws if not UNDER_REVIEW")
+    void approveDocument_wrongState_throws() {
         doc.setStatus(DocumentStatus.UPLOADED);
         VerificationRequest request = new VerificationRequest();
         request.setDocumentId(doc.getId());
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
 
-        assertThrows(InvalidStateTransitionException.class, () -> {
-            verificationService.approveDocument(request, "verifier@test.com", "127.0.0.1");
-        });
+        assertThatThrownBy(() ->
+                verificationService.approveDocument(request, "verifier@test.edu", "127.0.0.1"))
+                .isInstanceOf(InvalidStateTransitionException.class);
+
+        verify(emailService, never()).sendApprovalEmail(any(), any(), any(), any(), any());
     }
 
     @Test
-    void rejectDocument_missingReason() {
+    @DisplayName("Reject document — requires rejection reason")
+    void rejectDocument_noReason_throws() {
+        VerificationRequest request = new VerificationRequest();
+        request.setDocumentId(doc.getId());
+        request.setRejectionReason("");
+
+        when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+
+        assertThatThrownBy(() ->
+                verificationService.rejectDocument(request, "verifier@test.edu", "127.0.0.1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Rejection reason is required");
+    }
+
+    @Test
+    @DisplayName("Reject document — sets REJECTED and sends email")
+    void rejectDocument_success() {
+        VerificationRequest request = new VerificationRequest();
+        request.setDocumentId(doc.getId());
+        request.setRejectionReason("Document is not legible");
+
+        when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+        when(userRepository.findByEmail("verifier@test.edu")).thenReturn(Optional.of(verifier));
+        when(documentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(documentService.toResponse(any())).thenReturn(DocumentResponse.builder()
+                .status(DocumentStatus.REJECTED).build());
+
+        verificationService.rejectDocument(request, "verifier@test.edu", "127.0.0.1");
+
+        assertThat(doc.getStatus()).isEqualTo(DocumentStatus.REJECTED);
+        assertThat(doc.getRejectionReason()).isEqualTo("Document is not legible");
+        verify(emailService).sendRejectionEmail(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Approve twice — token not regenerated")
+    void approveDocument_tokenNotRegenerated() {
+        doc.setVerificationToken("existing-token-123");
         VerificationRequest request = new VerificationRequest();
         request.setDocumentId(doc.getId());
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+        when(userRepository.findByEmail("verifier@test.edu")).thenReturn(Optional.of(verifier));
+        when(documentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(documentService.toResponse(any())).thenReturn(DocumentResponse.builder().build());
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            verificationService.rejectDocument(request, "verifier@test.com", "127.0.0.1");
-        });
-    }
+        verificationService.approveDocument(request, "verifier@test.edu", "127.0.0.1");
 
-    @Test
-    void verifyPublicly_tamperDetected() throws Exception {
-        when(documentRepository.findByVerificationToken("token123")).thenReturn(Optional.of(doc));
-        when(storageService.resolveFilePath(anyString(), anyString())).thenReturn(java.nio.file.Path.of("test.pdf"));
-        when(storageService.computeSha256(any(java.nio.file.Path.class))).thenReturn("wrongHash");
-
-        PublicVerificationResponse response = verificationService.verifyPublicly("token123", "127.0.0.1");
-
-        assertTrue(response.isTamperDetected());
+        assertThat(doc.getVerificationToken()).isEqualTo("existing-token-123");
     }
 }

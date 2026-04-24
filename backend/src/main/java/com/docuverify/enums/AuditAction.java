@@ -5,7 +5,9 @@ public enum AuditAction {
     SUBMITTED_FOR_REVIEW,
     APPROVED,
     REJECTED,
-    VIEWED,
+    REVOKED,        // new
     PUBLIC_VERIFIED,
-    DELETED
+    VIEWED,
+    DELETED,
+    EXPIRED         // new — set by scheduler
 }

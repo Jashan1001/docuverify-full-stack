@@ -43,17 +43,21 @@ public class Document {
     @Column(nullable = false)
     private Long fileSize;
 
-    // SHA-256 hash of file contents for tamper detection
     @Column(nullable = false, unique = true)
     private String fileHash;
 
-    // Unique public token for QR/link-based verification
-    @Column(nullable = false, unique = true)
+    // Null until APPROVED
+    @Column(unique = true)
     private String verificationToken;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DocumentStatus status;
+
+    // Optional expiry — if set, document auto-expires after this date
+    // Null means no expiry (permanent)
+    @Column
+    private LocalDateTime expiresAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -69,6 +73,9 @@ public class Document {
 
     @Column
     private String rejectionReason;
+
+    @Column
+    private String revocationReason;
 
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<VerificationLog> logs;

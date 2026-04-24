@@ -4,5 +4,6 @@ public enum DocumentStatus {
     UPLOADED,
     UNDER_REVIEW,
     APPROVED,
-    REJECTED
+    REJECTED,
+    REVOKED   // new — admin/institution can revoke an approved document
 }

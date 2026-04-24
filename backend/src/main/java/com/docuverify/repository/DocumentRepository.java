@@ -20,6 +20,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     Page<Document> findByInstitution(Institution institution, Pageable pageable);
     Page<Document> findByStatus(DocumentStatus status, Pageable pageable);
     Page<Document> findByInstitutionAndStatus(Institution institution, DocumentStatus status, Pageable pageable);
+    List<Document> findByStatusAndExpiresAtBefore(DocumentStatus status, LocalDateTime now);
     Optional<Document> findByVerificationToken(String token);
     boolean existsByFileHash(String fileHash);
 

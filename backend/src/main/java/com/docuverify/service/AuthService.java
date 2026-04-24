@@ -20,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -34,65 +36,63 @@ public class AuthService {
     private final CustomUserDetailsService userDetailsService;
     private final AccessTokenBlocklistService accessTokenBlocklistService;
 
-    private final org.springframework.data.redis.core.RedisTemplate<String, String> redisTemplate;
+    // Common disposable/personal email domains that should not be
+    // auto-matched to institutions — these always fall to Default Institution
+    private static final Set<String> PERSONAL_DOMAINS = Set.of(
+            "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
+            "icloud.com", "protonmail.com", "live.com", "aol.com",
+            "ymail.com", "mail.com", "zoho.com", "rediffmail.com",
+            "yandex.com", "gmx.com", "tutanota.com"
+    );
 
     @Transactional
-    public void register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("Email already registered: " + request.getEmail());
         }
 
-        String emailDomain = request.getEmail().substring(request.getEmail().indexOf("@") + 1).toLowerCase();
-        
-        Institution assignedInstitution = institutionRepository.findByDomain(emailDomain)
-                .orElseGet(() -> institutionRepository.findByName("Default Institution").orElse(null));
+        String email = request.getEmail().toLowerCase().trim();
+        String emailDomain = email.substring(email.indexOf("@") + 1);
+
+        Institution assignedInstitution;
+
+        if (PERSONAL_DOMAINS.contains(emailDomain)) {
+            // Personal email — assign to Default Institution directly
+            // without attempting domain match
+            assignedInstitution = institutionRepository
+                    .findByName("Default Institution")
+                    .orElse(null);
+            log.info("Personal email domain '{}' — assigning to Default Institution", emailDomain);
+        } else {
+            // Institutional email — try domain match first
+            assignedInstitution = institutionRepository
+                    .findByDomain(emailDomain)
+                    .orElseGet(() -> {
+                        log.info("No institution found for domain '{}' — falling back to Default Institution",
+                                emailDomain);
+                        return institutionRepository.findByName("Default Institution").orElse(null);
+                    });
+        }
+
+        if (assignedInstitution == null) {
+            log.error("Default Institution not found in database — seeder may not have run");
+        }
 
         User user = User.builder()
                 .fullName(request.getFullName())
-                .email(request.getEmail())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.ROLE_USER)
                 .institution(assignedInstitution)
-                .enabled(true) // Set to true by default for easier development
+                .enabled(true)
                 .build();
 
         userRepository.save(user);
-        
-        String verificationToken = java.util.UUID.randomUUID().toString();
-        try {
-            redisTemplate.opsForValue().set("email_verification:" + verificationToken, user.getEmail(), java.time.Duration.ofHours(24));
-            
-            log.info("Registered new user: {} as ROLE_USER. User is disabled pending verification.", user.getEmail());
-            log.warn("SIMULATED EMAIL VERIFICATION: To activate this account, send a GET request or navigate to:");
-            log.warn("http://localhost:8080/api/auth/verify?token={}", verificationToken);
-        } catch (Exception e) {
-            log.warn("Redis is down, bypassing email verification for user: {}", user.getEmail());
-            user.setEnabled(true);
-            userRepository.save(user);
-        }
-    }
+        log.info("Registered new user: {} → institution: {}",
+                user.getEmail(),
+                assignedInstitution != null ? assignedInstitution.getName() : "none");
 
-    @Transactional
-    public void verifyEmail(String token) {
-        String email = null;
-        try {
-            email = redisTemplate.opsForValue().get("email_verification:" + token);
-        } catch (Exception e) {
-            log.warn("Redis is down, cannot verify email token.");
-        }
-        if (email == null) {
-            throw new IllegalArgumentException("Invalid or expired verification token");
-        }
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        user.setEnabled(true);
-        userRepository.save(user);
-        try {
-            redisTemplate.delete("email_verification:" + token);
-        } catch (Exception e) {
-            log.warn("Redis is down, could not delete email verification token.");
-        }
-        log.info("User email verified and account enabled: {}", email);
+        return buildTokenResponse(user);
     }
 
     @Transactional
@@ -121,7 +121,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole().name())
-                .institutionId(user.getInstitution() != null ? user.getInstitution().getId().toString() : null)
+                .institutionId(user.getInstitution() != null
+                        ? user.getInstitution().getId().toString() : null)
                 .build();
     }
 
@@ -146,7 +147,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole().name())
-                .institutionId(user.getInstitution() != null ? user.getInstitution().getId().toString() : null)
+                .institutionId(user.getInstitution() != null
+                        ? user.getInstitution().getId().toString() : null)
                 .build();
     }
 }

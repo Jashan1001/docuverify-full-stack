@@ -66,7 +66,6 @@ public class DocumentService {
             throw new DuplicateResourceException("This exact document has already been uploaded");
         }
 
-        // Upload to S3
         String fileUrl = storageService.uploadFile(file, institution.getId().toString());
 
         Document document = Document.builder()
@@ -77,7 +76,7 @@ public class DocumentService {
                 .fileType(file.getContentType())
                 .fileSize(file.getSize())
                 .fileHash(fileHash)
-                .verificationToken(UUID.randomUUID().toString())
+                .verificationToken(null) // assigned only on APPROVED
                 .status(DocumentStatus.UPLOADED)
                 .uploadedBy(uploader)
                 .institution(institution)
@@ -105,18 +104,10 @@ public class DocumentService {
         User requestor = userRepository.findByEmail(requestorEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Users can only see their own docs unless they're verifier/admin
         boolean isOwner = doc.getUploadedBy().getEmail().equals(requestorEmail);
         boolean isPrivileged = requestor.getRole() == Role.ROLE_VERIFIER
             || requestor.getRole() == Role.ROLE_ADMIN
             || requestor.getRole() == Role.ROLE_INSTITUTION_ADMIN;
-
-        if (isPrivileged && requestor.getRole() != Role.ROLE_ADMIN) {
-            if (requestor.getInstitution() == null || 
-                !requestor.getInstitution().getId().equals(doc.getInstitution().getId())) {
-                isPrivileged = false;
-            }
-        }
 
         if (!isOwner && !isPrivileged) {
             throw new AccessDeniedException("You don't have permission to view this document");
@@ -218,6 +209,7 @@ public class DocumentService {
                 .fileSize(doc.getFileSize())
                 .fileUrl(doc.getFileUrl())
                 .status(doc.getStatus())
+                // null until approved — frontend should gate on status before using this
                 .verificationToken(doc.getVerificationToken())
                 .uploadedBy(doc.getUploadedBy().getFullName())
                 .institutionName(doc.getInstitution().getName())
@@ -231,12 +223,10 @@ public class DocumentService {
         return findDocumentOrThrow(id);
     }
 
-    private void validateFileType(MultipartFile file) throws java.io.IOException {
-        org.apache.tika.Tika tika = new org.apache.tika.Tika();
-        String detectedType = tika.detect(file.getInputStream());
-        
-        if (detectedType == null || !ALLOWED_CONTENT_TYPES.contains(detectedType)) {
-            throw new IllegalArgumentException("Unsupported or spoofed file type. Detected: " + detectedType);
+    private void validateFileType(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new IllegalArgumentException("Unsupported file type");
         }
     }
 }

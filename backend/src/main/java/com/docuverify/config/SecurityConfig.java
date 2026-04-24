@@ -39,6 +39,7 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
+    // /api/files/** intentionally removed — files now require authentication
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/api/public/**",
@@ -67,6 +68,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/stats/admin").hasRole("ADMIN")
                         .requestMatchers("/api/stats/institution").hasAnyRole("INSTITUTION_ADMIN", "ADMIN")
                         .requestMatchers("/api/stats/verifier").hasAnyRole("VERIFIER", "ADMIN", "INSTITUTION_ADMIN")
+                        .requestMatchers("/api/files/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

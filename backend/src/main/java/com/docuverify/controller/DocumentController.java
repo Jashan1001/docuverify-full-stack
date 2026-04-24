@@ -3,140 +3,156 @@ package com.docuverify.controller;
 import com.docuverify.dto.ApiResponse;
 import com.docuverify.dto.DocumentRequest;
 import com.docuverify.dto.DocumentResponse;
+import com.docuverify.entity.Document;
 import com.docuverify.enums.DocumentStatus;
 import com.docuverify.service.DocumentService;
 import com.docuverify.util.RequestIpUtil;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/documents")
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentController {
 
     private final DocumentService documentService;
 
-    /**
-     * Upload a new document with metadata + file.
-     * Multipart: "file" + JSON fields title/description.
-     */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<DocumentResponse>> upload(
-            @RequestPart("file") MultipartFile file,
-            @RequestPart("title") String title,
-            @RequestPart(value = "description", required = false) String description,
-            @AuthenticationPrincipal UserDetails userDetails,
-            HttpServletRequest httpRequest
-    ) throws Exception {
-        DocumentRequest request = new DocumentRequest();
-        request.setTitle(title);
-        request.setDescription(description);
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendBaseUrl;
 
+    @PostMapping
+    public ResponseEntity<ApiResponse<DocumentResponse>> upload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("title") String title,
+            @RequestParam(value = "description", required = false) String description,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest request
+    ) throws Exception {
+        DocumentRequest docRequest = new DocumentRequest(title, description);
         DocumentResponse response = documentService.uploadDocument(
-                request, file, userDetails.getUsername(), RequestIpUtil.getClientIp(httpRequest));
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Document uploaded successfully", response));
+                docRequest, file, userDetails.getUsername(),
+                RequestIpUtil.getClientIp(request));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /**
-     * Get all documents uploaded by the authenticated user.
-     */
     @GetMapping("/my")
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getMyDocuments(
-            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<DocumentResponse> docs = documentService.getMyDocuments(userDetails.getUsername(), pageable);
-        return ResponseEntity.ok(ApiResponse.success("Documents fetched", docs));
+        Page<DocumentResponse> docs = documentService.getMyDocuments(
+                userDetails.getUsername(),
+                PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        return ResponseEntity.ok(ApiResponse.success(docs));
     }
 
-    /**
-     * Get a single document by ID (owner or verifier/admin).
-     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<DocumentResponse>> getById(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        DocumentResponse doc = documentService.getDocumentById(id, userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success("Document fetched", doc));
+        return ResponseEntity.ok(ApiResponse.success(
+                documentService.getDocumentById(id, userDetails.getUsername())));
     }
 
-    /**
-     * Submit a document for review (UPLOADED → UNDER_REVIEW).
-     */
     @PatchMapping("/{id}/submit")
-    public ResponseEntity<ApiResponse<Void>> submit(
+    public ResponseEntity<ApiResponse<Void>> submitForReview(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails,
-            HttpServletRequest httpRequest
+            HttpServletRequest request
     ) {
-        documentService.submitForReview(id, userDetails.getUsername(), RequestIpUtil.getClientIp(httpRequest));
-        return ResponseEntity.ok(ApiResponse.success("Document submitted for review", null));
+        documentService.submitForReview(id, userDetails.getUsername(),
+                RequestIpUtil.getClientIp(request));
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    /**
-     * Delete a document (only owner, non-APPROVED docs).
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         documentService.deleteDocument(id, userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success("Document deleted", null));
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    /**
-     * Get documents pending review — for verifiers.
-     */
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getPending(
-            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").ascending());
-        Page<DocumentResponse> docs = documentService.getPendingDocuments(userDetails.getUsername(), pageable);
-        return ResponseEntity.ok(ApiResponse.success("Pending documents fetched", docs));
+        Page<DocumentResponse> docs = documentService.getPendingDocuments(
+                userDetails.getUsername(),
+                PageRequest.of(page, size, Sort.by("createdAt").ascending()));
+        return ResponseEntity.ok(ApiResponse.success(docs));
+    }
+
+    @GetMapping("/institution")
+    public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getInstitutionDocuments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        DocumentStatus docStatus = null;
+        if (status != null && !status.isBlank()) {
+            docStatus = DocumentStatus.valueOf(status);
+        }
+        Page<DocumentResponse> docs = documentService.getInstitutionDocuments(
+                userDetails.getUsername(),
+                PageRequest.of(page, size, Sort.by("createdAt").descending()),
+                docStatus);
+        return ResponseEntity.ok(ApiResponse.success(docs));
     }
 
     /**
-     * Get documents for authenticated user's institution.
-     * Optional status filter.
+     * Returns a PNG QR code that encodes the public verification URL.
+     * Only works for APPROVED documents that have a verificationToken.
+     * Requires authentication — same access rules as getById.
      */
-    @GetMapping("/institution")
-    @PreAuthorize("hasAnyRole('VERIFIER', 'INSTITUTION_ADMIN', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getInstitutionDocuments(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String status
-    ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        DocumentStatus statusFilter = null;
-        if (status != null && !status.isBlank()) {
-            statusFilter = DocumentStatus.valueOf(status);
+    @GetMapping(value = "/{id}/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getQrCode(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) throws Exception {
+
+        // Reuse existing access control — throws AccessDeniedException if not allowed
+        DocumentResponse doc = documentService.getDocumentById(id, userDetails.getUsername());
+
+        if (doc.getVerificationToken() == null) {
+            return ResponseEntity.badRequest().build();
         }
-        Page<DocumentResponse> docs = documentService.getInstitutionDocuments(
-                userDetails.getUsername(), pageable, statusFilter
-        );
-        return ResponseEntity.ok(ApiResponse.success("Institution documents fetched", docs));
+
+        String verifyUrl = frontendBaseUrl + "/verify/" + doc.getVerificationToken();
+
+        QRCodeWriter writer = new QRCodeWriter();
+        BitMatrix matrix = writer.encode(verifyUrl, BarcodeFormat.QR_CODE, 300, 300);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        MatrixToImageWriter.writeToStream(matrix, "PNG", out);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .body(out.toByteArray());
     }
 }

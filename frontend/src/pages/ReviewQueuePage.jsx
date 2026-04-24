@@ -4,8 +4,9 @@ import { documentApi } from '../services/api'
 import StatusBadge from '../components/ui/StatusBadge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
-import { CheckSquare, FileText, ArrowRight, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { format, formatDistanceToNow } from 'date-fns'
+import { ClipboardList, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { format } from 'date-fns'
+import toast from 'react-hot-toast'
 
 export default function ReviewQueuePage() {
   const [docs, setDocs] = useState([])
@@ -14,7 +15,7 @@ export default function ReviewQueuePage() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
-  const fetchPending = async (p = 0) => {
+  const fetchQueue = async (p = 0) => {
     setLoading(true)
     try {
       const res = await documentApi.getPending(p, 10)
@@ -22,47 +23,39 @@ export default function ReviewQueuePage() {
       setDocs(data.content || [])
       setTotalPages(data.totalPages || 1)
       setTotalElements(data.totalElements || 0)
-    } catch {}
+    } catch {
+      toast.error('Failed to load review queue')
+    }
     setLoading(false)
   }
 
-  useEffect(() => { fetchPending(page) }, [page])
+  useEffect(() => { fetchQueue(page) }, [page])
 
   return (
     <div className="animate-fadeUp">
-      <div className="flex items-start justify-between mb-10">
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">— Verifier Panel</div>
+          <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">— Pending Review</div>
           <h1 className="page-header">Review Queue</h1>
           <p className="font-body text-muted mt-2 text-sm">
-            Documents awaiting your review and decision.
+            {totalElements > 0
+              ? `${totalElements} document${totalElements !== 1 ? 's' : ''} awaiting review`
+              : 'No documents pending review'}
           </p>
         </div>
-        {totalElements > 0 && (
-          <div className="border-3 border-accent shadow-brutal-accent px-6 py-3 text-center">
-            <div className="font-display text-3xl font-bold text-ink">{totalElements}</div>
-            <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Pending</div>
-          </div>
-        )}
+        <div className="border-3 border-ink px-4 py-2 bg-surface-1 shadow-brutal">
+          <div className="font-mono text-[10px] text-muted tracking-widest uppercase">Queue</div>
+          <div className="font-display text-2xl font-bold text-ink">{totalElements}</div>
+        </div>
       </div>
 
-      {/* Priority notice */}
-      {totalElements > 5 && (
-        <div className="border-3 border-accent bg-accent/10 p-4 mb-8 flex items-center gap-3">
-          <Clock size={16} className="text-accent flex-shrink-0" />
-          <span className="font-mono text-xs text-ink">
-            {totalElements} documents in queue — oldest submissions take priority.
-          </span>
-        </div>
-      )}
-
       {loading ? (
-        <LoadingSpinner text="Loading review queue..." />
+        <LoadingSpinner text="Loading queue..." />
       ) : docs.length === 0 ? (
         <EmptyState
-          icon={<CheckSquare size={48} />}
+          icon={<ClipboardList size={48} />}
           title="Queue is clear"
-          description="No documents are awaiting review. All caught up."
+          description="All documents have been reviewed. Check back later."
         />
       ) : (
         <>
@@ -100,63 +93,67 @@ export default function ReviewQueuePage() {
 }
 
 function QueueCard({ doc, index }) {
-  const submittedAgo = doc.updatedAt
-    ? formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })
-    : '—'
-
-  const isUrgent = doc.createdAt &&
-    (Date.now() - new Date(doc.createdAt).getTime()) > 48 * 60 * 60 * 1000
+  const submittedAt = doc.updatedAt ? new Date(doc.updatedAt) : null
+  const hoursWaiting = submittedAt
+    ? Math.floor((Date.now() - submittedAt.getTime()) / (1000 * 60 * 60))
+    : null
+  const isUrgent = hoursWaiting !== null && hoursWaiting >= 48
 
   return (
     <Link
       to={`/review/${doc.id}`}
-      className="block border-3 border-ink bg-paper shadow-brutal hover:translate-x-[-3px] hover:translate-y-[-3px] hover:shadow-brutal-lg transition-all duration-200 group"
+      className="block border-3 border-ink bg-paper shadow-brutal hover:translate-x-[-3px] hover:translate-y-[-3px] hover:shadow-brutal-lg transition-all duration-200"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      {isUrgent && (
-        <div className="bg-accent border-b-3 border-ink px-5 py-1.5">
-          <span className="font-mono text-[10px] text-paper tracking-widest uppercase">
-            ⚠ Submitted over 48 hours ago — review needed
-          </span>
+      <div className="flex items-start justify-between p-5 border-b-3 border-ink">
+        <div>
+          <h3 className="font-display text-lg font-bold text-ink">{doc.title}</h3>
+          {doc.description && (
+            <p className="font-body text-sm text-muted mt-1 max-w-lg">{doc.description}</p>
+          )}
         </div>
-      )}
-
-      <div className="flex items-center justify-between p-5">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 border-3 border-ink flex items-center justify-center bg-surface-1 flex-shrink-0 shadow-brutal">
-            <FileText size={18} />
-          </div>
-          <div>
-            <h3 className="font-display text-lg font-bold text-ink leading-tight">{doc.title}</h3>
-            <div className="font-mono text-xs text-muted mt-1">
-              {doc.uploadedBy} · {doc.institutionName}
-            </div>
-            {doc.description && (
-              <p className="font-body text-sm text-muted mt-1.5 max-w-md line-clamp-1">
-                {doc.description}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end gap-3 flex-shrink-0 ml-4">
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+          {isUrgent && (
+            <span className="border-2 border-danger text-danger font-mono text-[10px] tracking-widest uppercase px-2 py-0.5">
+              Urgent
+            </span>
+          )}
           <StatusBadge status={doc.status} />
-          <div className="font-mono text-xs text-muted">{submittedAgo}</div>
-          <ArrowRight size={16} className="text-muted group-hover:text-accent transition-colors" />
         </div>
       </div>
 
-      <div className="grid grid-cols-3 divide-x-3 divide-ink border-t-3 border-ink">
+      <div className="grid grid-cols-2 md:grid-cols-4 divide-x-3 divide-ink">
         {[
+          ['Uploaded By', doc.uploadedBy],
+          ['Institution', doc.institutionName],
           ['File', doc.fileName],
-          ['Size', `${(doc.fileSize / 1024).toFixed(1)} KB`],
-          ['Uploaded', doc.createdAt ? format(new Date(doc.createdAt), 'dd MMM yyyy') : '—'],
+          ['Waiting',
+            hoursWaiting !== null
+              ? hoursWaiting < 1 ? 'Just now'
+              : hoursWaiting < 24 ? `${hoursWaiting}h`
+              : `${Math.floor(hoursWaiting / 24)}d ${hoursWaiting % 24}h`
+              : '—'
+          ],
         ].map(([label, val]) => (
-          <div key={label} className="px-4 py-2.5">
+          <div key={label} className="px-4 py-3">
             <div className="font-mono text-[10px] text-muted tracking-widest uppercase">{label}</div>
-            <div className="font-mono text-xs text-ink mt-0.5 truncate">{val}</div>
+            <div className={`font-mono text-xs mt-0.5 truncate ${label === 'Waiting' && isUrgent ? 'text-danger font-bold' : 'text-ink'}`}>
+              {val}
+            </div>
           </div>
         ))}
+      </div>
+
+      <div className="px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-muted">
+          <Clock size={12} />
+          <span className="font-mono text-xs">
+            Submitted {submittedAt ? format(submittedAt, 'dd MMM yyyy, HH:mm') : '—'}
+          </span>
+        </div>
+        <span className="font-mono text-xs text-accent underline underline-offset-4">
+          Review →
+        </span>
       </div>
     </Link>
   )

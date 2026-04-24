@@ -1,160 +1,158 @@
 package com.docuverify.service;
 
 import com.docuverify.dto.DocumentRequest;
+import com.docuverify.dto.DocumentResponse;
+import com.docuverify.entity.Document;
 import com.docuverify.entity.Institution;
 import com.docuverify.entity.User;
+import com.docuverify.enums.DocumentStatus;
+import com.docuverify.enums.Role;
+import com.docuverify.exception.DuplicateResourceException;
 import com.docuverify.repository.DocumentRepository;
 import com.docuverify.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceTest {
 
-    @Mock
-    private DocumentRepository documentRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private StorageService storageService;
-    @Mock
-    private AuditLogService auditLogService;
+    @Mock DocumentRepository documentRepository;
+    @Mock UserRepository userRepository;
+    @Mock StorageService storageService;
+    @Mock AuditLogService auditLogService;
 
-    @InjectMocks
-    private DocumentService documentService;
+    @InjectMocks DocumentService documentService;
 
-    private User uploader;
-    private Institution institution;
+    private User testUser;
+    private Institution testInstitution;
 
     @BeforeEach
     void setUp() {
-        institution = new Institution();
-        institution.setId(UUID.randomUUID());
-        institution.setName("Test Institution");
+        testInstitution = Institution.builder()
+                .id(UUID.randomUUID())
+                .name("Test University")
+                .domain("test.edu")
+                .build();
 
-        uploader = new User();
-        uploader.setEmail("uploader@test.com");
-        uploader.setInstitution(institution);
+        testUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("user@test.edu")
+                .fullName("Test User")
+                .role(Role.ROLE_USER)
+                .institution(testInstitution)
+                .build();
     }
 
     @Test
+    @DisplayName("Upload document — success")
     void uploadDocument_success() throws Exception {
-        DocumentRequest request = new DocumentRequest();
-        request.setTitle("Test Doc");
-
         MockMultipartFile file = new MockMultipartFile(
-                "file", "test.pdf", "application/pdf", "dummy content".getBytes()
-        );
+                "file", "test.pdf", "application/pdf", "content".getBytes());
 
-        when(userRepository.findByEmail("uploader@test.com")).thenReturn(Optional.of(uploader));
-        when(storageService.computeSha256(any(org.springframework.web.multipart.MultipartFile.class))).thenReturn("dummyHash");
-        when(documentRepository.existsByFileHash("dummyHash")).thenReturn(false);
-        when(storageService.uploadFile(any(), anyString())).thenReturn("/api/files/test.pdf");
+        DocumentRequest request = new DocumentRequest("My Certificate", "Description");
 
-        // Assuming Tika logic works or we might need to mock Tika if it's not easily mockable since it's instantiated inside.
-        // Wait, Tika is instantiated inside the method! It will throw an exception if the file isn't really a PDF.
-        // Let's test just the user not found.
+        when(userRepository.findByEmail("user@test.edu")).thenReturn(Optional.of(testUser));
+        when(storageService.computeSha256(file)).thenReturn("abc123hash");
+        when(documentRepository.existsByFileHash("abc123hash")).thenReturn(false);
+        when(storageService.uploadFile(file, testInstitution.getId().toString()))
+                .thenReturn("/api/files/" + testInstitution.getId() + "/test.pdf");
+        when(documentRepository.save(any(Document.class))).thenAnswer(i -> i.getArgument(0));
+
+        DocumentResponse response = documentService.uploadDocument(
+                request, file, "user@test.edu", "127.0.0.1");
+
+        assertThat(response.getTitle()).isEqualTo("My Certificate");
+        assertThat(response.getStatus()).isEqualTo(DocumentStatus.UPLOADED);
+        assertThat(response.getVerificationToken()).isNull();
+        verify(auditLogService).log(any(), any(), eq("user@test.edu"), any(), any());
     }
 
     @Test
-    void uploadDocument_userNotFound() {
-        DocumentRequest request = new DocumentRequest();
-        MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf", "dummy".getBytes());
+    @DisplayName("Upload document — duplicate file hash throws")
+    void uploadDocument_duplicateHash_throws() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "test.pdf", "application/pdf", "content".getBytes());
 
-        when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("user@test.edu")).thenReturn(Optional.of(testUser));
+        when(storageService.computeSha256(file)).thenReturn("duplicatehash");
+        when(documentRepository.existsByFileHash("duplicatehash")).thenReturn(true);
 
-        assertThrows(com.docuverify.exception.ResourceNotFoundException.class, () -> {
-            documentService.uploadDocument(request, file, "unknown@test.com", "127.0.0.1");
-        });
+        assertThatThrownBy(() ->
+                documentService.uploadDocument(
+                        new DocumentRequest("Title", null), file, "user@test.edu", "127.0.0.1"))
+                .isInstanceOf(DuplicateResourceException.class);
     }
 
     @Test
-    void getDocumentById_accessDenied() {
-        com.docuverify.entity.Document doc = new com.docuverify.entity.Document();
-        doc.setId(UUID.randomUUID());
-        doc.setUploadedBy(uploader);
-        
-        Institution otherInst = new Institution();
-        otherInst.setId(UUID.randomUUID());
-        doc.setInstitution(otherInst);
-
-        User requestor = new User();
-        requestor.setEmail("other@test.com");
-        requestor.setRole(com.docuverify.enums.Role.ROLE_VERIFIER);
-        requestor.setInstitution(institution); // Different institution
+    @DisplayName("Submit for review — success from UPLOADED state")
+    void submitForReview_success() {
+        Document doc = Document.builder()
+                .id(UUID.randomUUID())
+                .status(DocumentStatus.UPLOADED)
+                .uploadedBy(testUser)
+                .institution(testInstitution)
+                .build();
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
-        when(userRepository.findByEmail("other@test.com")).thenReturn(Optional.of(requestor));
+        when(userRepository.findByEmail("user@test.edu")).thenReturn(Optional.of(testUser));
+        when(documentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
-            documentService.getDocumentById(doc.getId(), "other@test.com");
-        });
+        documentService.submitForReview(doc.getId(), "user@test.edu", "127.0.0.1");
+
+        assertThat(doc.getStatus()).isEqualTo(DocumentStatus.UNDER_REVIEW);
     }
 
     @Test
-    void uploadDocument_duplicateHash() throws Exception {
-        DocumentRequest request = new DocumentRequest();
-        MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf", "%PDF-1.4 dummy".getBytes());
+    @DisplayName("Submit for review — throws if not owner")
+    void submitForReview_notOwner_throws() {
+        User otherUser = User.builder()
+                .email("other@test.edu")
+                .role(Role.ROLE_USER)
+                .institution(testInstitution)
+                .build();
 
-        when(userRepository.findByEmail("uploader@test.com")).thenReturn(Optional.of(uploader));
-        when(storageService.computeSha256(any(org.springframework.web.multipart.MultipartFile.class))).thenReturn("dupHash");
-        when(documentRepository.existsByFileHash("dupHash")).thenReturn(true);
-
-        assertThrows(com.docuverify.exception.DuplicateResourceException.class, () -> {
-            documentService.uploadDocument(request, file, "uploader@test.com", "127.0.0.1");
-        });
-    }
-
-    @Test
-    void submitForReview_wrongOwner() {
-        com.docuverify.entity.Document doc = new com.docuverify.entity.Document();
-        doc.setId(UUID.randomUUID());
-        doc.setUploadedBy(uploader);
-
-        when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
-
-        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
-            documentService.submitForReview(doc.getId(), "wrong@test.com", "127.0.0.1");
-        });
-    }
-
-    @Test
-    void submitForReview_wrongStatus() {
-        com.docuverify.entity.Document doc = new com.docuverify.entity.Document();
-        doc.setId(UUID.randomUUID());
-        doc.setUploadedBy(uploader);
-        doc.setStatus(com.docuverify.enums.DocumentStatus.UNDER_REVIEW);
+        Document doc = Document.builder()
+                .id(UUID.randomUUID())
+                .status(DocumentStatus.UPLOADED)
+                .uploadedBy(testUser)
+                .institution(testInstitution)
+                .build();
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
 
-        assertThrows(IllegalStateException.class, () -> {
-            documentService.submitForReview(doc.getId(), "uploader@test.com", "127.0.0.1");
-        });
+        assertThatThrownBy(() ->
+                documentService.submitForReview(doc.getId(), "other@test.edu", "127.0.0.1"))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
-    void deleteDocument_approvedDoc() {
-        com.docuverify.entity.Document doc = new com.docuverify.entity.Document();
-        doc.setId(UUID.randomUUID());
-        doc.setUploadedBy(uploader);
-        doc.setStatus(com.docuverify.enums.DocumentStatus.APPROVED);
+    @DisplayName("Submit for review — throws if already under review")
+    void submitForReview_wrongState_throws() {
+        Document doc = Document.builder()
+                .id(UUID.randomUUID())
+                .status(DocumentStatus.UNDER_REVIEW)
+                .uploadedBy(testUser)
+                .institution(testInstitution)
+                .build();
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
 
-        assertThrows(IllegalStateException.class, () -> {
-            documentService.deleteDocument(doc.getId(), "uploader@test.com");
-        });
+        assertThatThrownBy(() ->
+                documentService.submitForReview(doc.getId(), "user@test.edu", "127.0.0.1"))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

@@ -1,5 +1,6 @@
 package com.docuverify.service;
 
+import com.docuverify.dto.VerificationLogResponse;
 import com.docuverify.entity.Document;
 import com.docuverify.entity.VerificationLog;
 import com.docuverify.enums.AuditAction;
@@ -17,7 +18,8 @@ public class AuditLogService {
     private final VerificationLogRepository logRepository;
 
     @Transactional
-    public void log(Document document, AuditAction action, String performedBy, String ipAddress, String remarks) {
+    public void log(Document document, AuditAction action, String performedBy,
+                    String ipAddress, String remarks) {
         VerificationLog entry = VerificationLog.builder()
                 .document(document)
                 .action(action)
@@ -29,7 +31,17 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<VerificationLog> getLogsForDocument(Document document) {
-        return logRepository.findByDocumentOrderByTimestampDesc(document);
+    public List<VerificationLogResponse> getLogsForDocument(Document document) {
+        return logRepository.findByDocumentOrderByTimestampDesc(document)
+                .stream()
+                .map(log -> VerificationLogResponse.builder()
+                        .id(log.getId())
+                        .action(log.getAction())
+                        .performedBy(log.getPerformedBy())
+                        .ipAddress(log.getIpAddress())
+                        .remarks(log.getRemarks())
+                        .timestamp(log.getTimestamp())
+                        .build())
+                .toList();
     }
 }

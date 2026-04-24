@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,12 +29,11 @@ public class VerificationService {
     private final AuditLogService auditLogService;
     private final DocumentService documentService;
     private final StorageService storageService;
+    private final EmailService emailService;
 
-    /**
-     * State machine: UNDER_REVIEW → APPROVED
-     */
     @Transactional
-    public DocumentResponse approveDocument(VerificationRequest request, String verifierEmail, String clientIp) {
+    public DocumentResponse approveDocument(VerificationRequest request,
+                                             String verifierEmail, String clientIp) {
         Document doc = documentRepository.findById(request.getDocumentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 
@@ -46,20 +46,31 @@ public class VerificationService {
 
         doc.setStatus(DocumentStatus.APPROVED);
         doc.setVerifiedBy(verifier);
+
+        if (doc.getVerificationToken() == null) {
+            doc.setVerificationToken(UUID.randomUUID().toString());
+        }
+
         documentRepository.save(doc);
 
         auditLogService.log(doc, AuditAction.APPROVED, verifierEmail, clientIp,
                 request.getRemarks() != null ? request.getRemarks() : "Document approved");
 
+        emailService.sendApprovalEmail(
+                doc.getUploadedBy().getEmail(),
+                doc.getUploadedBy().getFullName(),
+                doc.getTitle(),
+                doc.getVerificationToken(),
+                doc.getInstitution().getName()
+        );
+
         log.info("Document {} approved by {}", doc.getId(), verifierEmail);
         return documentService.toResponse(doc);
     }
 
-    /**
-     * State machine: UNDER_REVIEW → REJECTED
-     */
     @Transactional
-    public DocumentResponse rejectDocument(VerificationRequest request, String verifierEmail, String clientIp) {
+    public DocumentResponse rejectDocument(VerificationRequest request,
+                                            String verifierEmail, String clientIp) {
         Document doc = documentRepository.findById(request.getDocumentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 
@@ -82,44 +93,56 @@ public class VerificationService {
         auditLogService.log(doc, AuditAction.REJECTED, verifierEmail, clientIp,
                 "Rejected: " + request.getRejectionReason());
 
+        emailService.sendRejectionEmail(
+                doc.getUploadedBy().getEmail(),
+                doc.getUploadedBy().getFullName(),
+                doc.getTitle(),
+                doc.getRejectionReason(),
+                doc.getInstitution().getName()
+        );
+
         log.info("Document {} rejected by {}", doc.getId(), verifierEmail);
         return documentService.toResponse(doc);
     }
 
-    /**
-     * Public endpoint — no auth required.
-     * Verifies document by its unique verificationToken (used in QR codes / share links).
-     */
+    @Transactional
     public PublicVerificationResponse verifyPublicly(String token, String clientIp) {
         Document doc = documentRepository.findByVerificationToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Document not found for this verification link"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Document not found for this verification link"));
 
         auditLogService.log(doc, AuditAction.PUBLIC_VERIFIED, null, clientIp,
                 "Public verification attempt");
 
+        // ── Live tamper detection — works for both local and S3 ──────────────
+        boolean tamperDetected = false;
+        try {
+            byte[] bytes = storageService.readFileBytes(doc.getFileUrl());
+            String currentHash = storageService.computeSha256FromBytes(bytes);
+            tamperDetected = !currentHash.equals(doc.getFileHash());
+            if (tamperDetected) {
+                log.warn("TAMPER DETECTED for document {}: hash mismatch", doc.getId());
+            }
+        } catch (Exception e) {
+            log.warn("Integrity check failed for document {}: {}", doc.getId(), e.getMessage());
+            tamperDetected = true;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         boolean isApproved = doc.getStatus() == DocumentStatus.APPROVED;
+
         String message = switch (doc.getStatus()) {
-            case APPROVED -> "Document is verified and authentic.";
+            case APPROVED -> tamperDetected
+                    ? "WARNING: This document may have been tampered with after approval."
+                    : "Document is verified and authentic.";
             case REJECTED -> "Document has been rejected by the institution.";
             case UNDER_REVIEW -> "Document is currently under review.";
             case UPLOADED -> "Document has not been submitted for review yet.";
+            case REVOKED -> "This document has been revoked by the institution.";
         };
 
-        LocalDateTime verifiedAt = isApproved && doc.getUpdatedAt() != null ? doc.getUpdatedAt() : null;
-
-        boolean tamperDetected = false;
-        try {
-            String filename = doc.getFileUrl().substring(doc.getFileUrl().lastIndexOf("/") + 1);
-            java.nio.file.Path filePath = storageService.resolveFilePath(doc.getInstitution().getId().toString(), filename);
-            String computedHash = storageService.computeSha256(filePath);
-            if (!computedHash.equals(doc.getFileHash())) {
-                tamperDetected = true;
-                log.warn("Tamper detected for document {}: stored hash {} != computed hash {}", doc.getId(), doc.getFileHash(), computedHash);
-            }
-        } catch (Exception e) {
-            log.error("Failed to verify document hash for document {}", doc.getId(), e);
-            tamperDetected = true;
-        }
+        LocalDateTime verifiedAt = isApproved && doc.getUpdatedAt() != null
+                ? doc.getUpdatedAt() : null;
 
         return PublicVerificationResponse.builder()
                 .title(doc.getTitle())
