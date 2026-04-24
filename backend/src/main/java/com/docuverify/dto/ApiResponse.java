@@ -25,6 +25,14 @@ public class ApiResponse<T> {
                 .build();
     }
 
+    public static <T> ApiResponse<T> success(T data) {
+        return success(null, data);
+    }
+
+    public static <T> ApiResponse<T> success(String message) {
+        return success(message, null);
+    }
+
     public static <T> ApiResponse<T> error(String message) {
         return ApiResponse.<T>builder()
                 .success(false)

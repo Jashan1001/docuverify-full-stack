@@ -1,11 +1,8 @@
 package com.docuverify.controller;
 
-import com.docuverify.dto.ApiResponse;
-import com.docuverify.dto.DocumentResponse;
-import com.docuverify.dto.VerificationRequest;
+import com.docuverify.dto.*;
 import com.docuverify.entity.Document;
 import com.docuverify.entity.User;
-import com.docuverify.entity.VerificationLog;
 import com.docuverify.enums.Role;
 import com.docuverify.exception.ResourceNotFoundException;
 import com.docuverify.repository.UserRepository;
@@ -63,13 +60,8 @@ public class VerificationController {
         return ResponseEntity.ok(ApiResponse.success("Document rejected", response));
     }
 
-    /**
-     * Audit log access rules:
-     * - Verifiers, Institution Admins, Admins: always allowed
-     * - Regular users: only for their own documents
-     */
     @GetMapping("/logs/{documentId}")
-    public ResponseEntity<ApiResponse<List<VerificationLog>>> getLogs(
+    public ResponseEntity<ApiResponse<List<VerificationLogResponse>>> getLogs(
             @PathVariable UUID documentId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
@@ -87,7 +79,7 @@ public class VerificationController {
             throw new AccessDeniedException("You do not have access to this document's audit log");
         }
 
-        List<VerificationLog> logs = auditLogService.getLogsForDocument(doc);
+        List<VerificationLogResponse> logs = auditLogService.getLogsForDocument(doc);
         return ResponseEntity.ok(ApiResponse.success("Audit logs fetched", logs));
     }
 }

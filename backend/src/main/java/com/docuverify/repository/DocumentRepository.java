@@ -8,12 +8,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.List;
+
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
     Page<Document> findByUploadedBy(User user, Pageable pageable);
@@ -35,20 +37,48 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     long countByVerifiedByAndStatus(User verifier, DocumentStatus status);
 
     // Verified today by specific verifier
-    @Query("SELECT COUNT(d) FROM Document d WHERE d.verifiedBy = :verifier AND d.status = :status AND d.updatedAt >= :since")
-    long countByVerifiedByAndStatusSince(User verifier, DocumentStatus status, LocalDateTime since);
+    @Query("""
+        SELECT COUNT(d)
+        FROM Document d
+        WHERE d.verifiedBy = :verifier
+          AND d.status = :status
+          AND d.updatedAt >= :since
+    """)
+    long countByVerifiedByAndStatusSince(@Param("verifier") User verifier,
+                                         @Param("status") DocumentStatus status,
+                                         @Param("since") LocalDateTime since);
 
     // Urgent: under review for more than 48h
-    @Query("SELECT COUNT(d) FROM Document d WHERE d.institution = :institution AND d.status = 'UNDER_REVIEW' AND d.updatedAt < :threshold")
-    long countUrgentByInstitution(Institution institution, LocalDateTime threshold);
+    @Query("""
+        SELECT COUNT(d)
+        FROM Document d
+        WHERE d.institution = :institution
+          AND d.status = :status
+          AND d.updatedAt < :threshold
+    """)
+    long countUrgentByInstitution(@Param("institution") Institution institution,
+                                  @Param("status") DocumentStatus status,
+                                  @Param("threshold") LocalDateTime threshold);
 
-    @Query("SELECT COUNT(d) FROM Document d WHERE d.status = 'UNDER_REVIEW' AND d.updatedAt < :threshold")
-    long countUrgentGlobal(LocalDateTime threshold);
+    @Query("""
+        SELECT COUNT(d)
+        FROM Document d
+        WHERE d.status = :status
+          AND d.updatedAt < :threshold
+    """)
+    long countUrgentGlobal(@Param("status") DocumentStatus status,
+                           @Param("threshold") LocalDateTime threshold);
 
     // Platform-wide verified today
-    @Query("SELECT COUNT(d) FROM Document d WHERE d.status = 'APPROVED' AND d.updatedAt >= :since")
-    long countApprovedSince(LocalDateTime since);
+    @Query("""
+        SELECT COUNT(d)
+        FROM Document d
+        WHERE d.status = :status
+          AND d.updatedAt >= :since
+    """)
+    long countApprovedSince(@Param("status") DocumentStatus status,
+                            @Param("since") LocalDateTime since);
 
     @Query("SELECT d.institution.id, COUNT(d) FROM Document d WHERE d.institution.id IN :institutionIds GROUP BY d.institution.id")
-    java.util.List<Object[]> countDocumentsByInstitutionIds(@org.springframework.data.repository.query.Param("institutionIds") java.util.List<UUID> institutionIds);
+    List<Object[]> countDocumentsByInstitutionIds(@Param("institutionIds") List<UUID> institutionIds);
 }

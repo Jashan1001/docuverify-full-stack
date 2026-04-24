@@ -51,7 +51,7 @@ public class DocumentController {
         DocumentResponse response = documentService.uploadDocument(
                 docRequest, file, userDetails.getUsername(),
                 RequestIpUtil.getClientIp(request));
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success("Document uploaded successfully", response));
     }
 
     @GetMapping("/my")
@@ -63,7 +63,7 @@ public class DocumentController {
         Page<DocumentResponse> docs = documentService.getMyDocuments(
                 userDetails.getUsername(),
                 PageRequest.of(page, size, Sort.by("createdAt").descending()));
-        return ResponseEntity.ok(ApiResponse.success(docs));
+        return ResponseEntity.ok(ApiResponse.success("Documents fetched", docs));
     }
 
     @GetMapping("/{id}")
@@ -72,6 +72,7 @@ public class DocumentController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         return ResponseEntity.ok(ApiResponse.success(
+                "Document fetched",
                 documentService.getDocumentById(id, userDetails.getUsername())));
     }
 
@@ -83,7 +84,7 @@ public class DocumentController {
     ) {
         documentService.submitForReview(id, userDetails.getUsername(),
                 RequestIpUtil.getClientIp(request));
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.ok(ApiResponse.success("Operation successful", null));
     }
 
     @DeleteMapping("/{id}")
@@ -92,7 +93,7 @@ public class DocumentController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         documentService.deleteDocument(id, userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.ok(ApiResponse.success("Operation successful", null));
     }
 
     @GetMapping("/pending")
@@ -104,7 +105,7 @@ public class DocumentController {
         Page<DocumentResponse> docs = documentService.getPendingDocuments(
                 userDetails.getUsername(),
                 PageRequest.of(page, size, Sort.by("createdAt").ascending()));
-        return ResponseEntity.ok(ApiResponse.success(docs));
+        return ResponseEntity.ok(ApiResponse.success("Documents fetched", docs));
     }
 
     @GetMapping("/institution")
@@ -122,7 +123,7 @@ public class DocumentController {
                 userDetails.getUsername(),
                 PageRequest.of(page, size, Sort.by("createdAt").descending()),
                 docStatus);
-        return ResponseEntity.ok(ApiResponse.success(docs));
+        return ResponseEntity.ok(ApiResponse.success("Documents fetched", docs));
     }
 
     /**

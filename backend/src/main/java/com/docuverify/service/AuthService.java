@@ -36,8 +36,6 @@ public class AuthService {
     private final CustomUserDetailsService userDetailsService;
     private final AccessTokenBlocklistService accessTokenBlocklistService;
 
-    // Common disposable/personal email domains that should not be
-    // auto-matched to institutions — these always fall to Default Institution
     private static final Set<String> PERSONAL_DOMAINS = Set.of(
             "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
             "icloud.com", "protonmail.com", "live.com", "aol.com",
@@ -57,25 +55,13 @@ public class AuthService {
         Institution assignedInstitution;
 
         if (PERSONAL_DOMAINS.contains(emailDomain)) {
-            // Personal email — assign to Default Institution directly
-            // without attempting domain match
             assignedInstitution = institutionRepository
                     .findByName("Default Institution")
                     .orElse(null);
-            log.info("Personal email domain '{}' — assigning to Default Institution", emailDomain);
         } else {
-            // Institutional email — try domain match first
             assignedInstitution = institutionRepository
                     .findByDomain(emailDomain)
-                    .orElseGet(() -> {
-                        log.info("No institution found for domain '{}' — falling back to Default Institution",
-                                emailDomain);
-                        return institutionRepository.findByName("Default Institution").orElse(null);
-                    });
-        }
-
-        if (assignedInstitution == null) {
-            log.error("Default Institution not found in database — seeder may not have run");
+                    .orElseGet(() -> institutionRepository.findByName("Default Institution").orElse(null));
         }
 
         User user = User.builder()
@@ -88,10 +74,6 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
-        log.info("Registered new user: {} → institution: {}",
-                user.getEmail(),
-                assignedInstitution != null ? assignedInstitution.getName() : "none");
-
         return buildTokenResponse(user);
     }
 
@@ -102,7 +84,6 @@ public class AuthService {
         );
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        log.info("User logged in: {}", user.getEmail());
         return buildTokenResponse(user);
     }
 
@@ -114,7 +95,7 @@ public class AuthService {
         RefreshToken newRefreshToken = tokenService.createRefreshToken(user);
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String newAccessToken = jwtUtil.generateAccessToken(userDetails);
-        log.info("Tokens refreshed for: {}", user.getEmail());
+        
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken.getToken())
@@ -134,7 +115,12 @@ public class AuthService {
         if (accessToken != null && !accessToken.isBlank()) {
             accessTokenBlocklistService.blacklist(accessToken);
         }
-        log.info("User logged out: {}", email);
+    }
+
+    @Transactional
+    public void verifyEmail(String token) {
+        log.info("Verifying email with token: {}", token);
+        // Implementation for email verification if needed
     }
 
     private AuthResponse buildTokenResponse(User user) {
