@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
-
+import java.util.List;
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
     Page<Document> findByUploadedBy(User user, Pageable pageable);
