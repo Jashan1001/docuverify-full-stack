@@ -1,6 +1,7 @@
 package com.docuverify.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,7 +33,8 @@ public class StorageService {
     @Value("${aws.s3.bucket:docuverify-documents}")
     private String s3Bucket;
 
-    public StorageService(S3Client s3Client) {
+    // ✅ OPTIONAL injection (key fix)
+    public StorageService(@Autowired(required = false) S3Client s3Client) {
         this.s3Client = s3Client;
     }
 
@@ -57,9 +59,6 @@ public class StorageService {
         }
     }
 
-    /**
-     * Used by tamper detection — reads raw bytes regardless of storage backend.
-     */
     public byte[] readFileBytes(String fileUrl) throws IOException {
         if (isS3()) {
             return readFromS3(s3KeyFromUrl(fileUrl));
@@ -70,10 +69,6 @@ public class StorageService {
         }
     }
 
-    /**
-     * Local-only path resolution — only called in local mode.
-     * VerificationService uses readFileBytes() instead, which works for both modes.
-     */
     public Path resolveFilePath(String institutionId, String filename) {
         return Paths.get(uploadDir, institutionId, filename);
     }
@@ -91,12 +86,13 @@ public class StorageService {
 
     // ── Local implementation ─────────────────────────────────────────────────
 
-    private String uploadToLocal(MultipartFile file, String institutionId,
-                                  String storedName) throws IOException {
+    private String uploadToLocal(MultipartFile file, String institutionId, String storedName) throws IOException {
         Path uploadPath = Paths.get(uploadDir, institutionId);
         Files.createDirectories(uploadPath);
+
         Path targetPath = uploadPath.resolve(storedName);
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
         String fileUrl = "/api/files/" + institutionId + "/" + storedName;
         log.info("File stored locally: {}", fileUrl);
         return fileUrl;
@@ -115,9 +111,11 @@ public class StorageService {
 
     // ── S3 implementation ────────────────────────────────────────────────────
 
-    private String uploadToS3(MultipartFile file, String institutionId,
-                               String storedName) throws IOException {
+    private String uploadToS3(MultipartFile file, String institutionId, String storedName) throws IOException {
+        ensureS3();
+
         String s3Key = "documents/" + institutionId + "/" + storedName;
+
         try (InputStream inputStream = file.getInputStream()) {
             PutObjectRequest request = PutObjectRequest.builder()
                     .bucket(s3Bucket)
@@ -125,21 +123,26 @@ public class StorageService {
                     .contentType(file.getContentType())
                     .contentLength(file.getSize())
                     .build();
+
             s3Client.putObject(request, RequestBody.fromInputStream(inputStream, file.getSize()));
         }
-        // Store as /api/files/s3/{s3Key} so FileController can route to S3
+
         String fileUrl = "/api/files/s3/" + s3Key;
         log.info("File uploaded to S3: s3://{}/{}", s3Bucket, s3Key);
         return fileUrl;
     }
 
     private void deleteFromS3(String fileUrl) {
+        ensureS3();
+
         try {
             String s3Key = s3KeyFromUrl(fileUrl);
+
             s3Client.deleteObject(DeleteObjectRequest.builder()
                     .bucket(s3Bucket)
                     .key(s3Key)
                     .build());
+
             log.info("S3 file deleted: {}", s3Key);
         } catch (Exception e) {
             log.error("Failed to delete S3 file: {}", fileUrl, e);
@@ -147,12 +150,15 @@ public class StorageService {
     }
 
     private byte[] readFromS3(String s3Key) throws IOException {
+        ensureS3();
+
         try {
-            ResponseInputStream<GetObjectResponse> response = s3Client.getObject(
-                    GetObjectRequest.builder()
+            ResponseInputStream<GetObjectResponse> response =
+                    s3Client.getObject(GetObjectRequest.builder()
                             .bucket(s3Bucket)
                             .key(s3Key)
                             .build());
+
             return response.readAllBytes();
         } catch (S3Exception e) {
             throw new IOException("Failed to read S3 object: " + s3Key, e);
@@ -162,11 +168,16 @@ public class StorageService {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private boolean isS3() {
-        return "s3".equalsIgnoreCase(storageMode);
+        return "s3".equalsIgnoreCase(storageMode) && s3Client != null;
+    }
+
+    private void ensureS3() {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured but storage.mode=s3");
+        }
     }
 
     private String s3KeyFromUrl(String fileUrl) {
-        // /api/files/s3/documents/{institutionId}/{filename}
         return fileUrl.replace("/api/files/s3/", "");
     }
 
