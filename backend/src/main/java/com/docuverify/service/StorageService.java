@@ -26,20 +26,30 @@ public class StorageService {
     // ✅ Upload file to Cloudinary
     public String uploadFile(MultipartFile file, String institutionId) {
         try {
+            // Use 'raw' for PDFs to avoid Cloudinary's image processing which can fail for some documents
+            String resourceType = "auto";
+            String contentType = file.getContentType();
+            if (contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
+                resourceType = "raw";
+            }
+
             Map uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
                             "folder", "docuverify/" + institutionId,
-                            "resource_type", "auto"
+                            "resource_type", resourceType,
+                            "use_filename", true,
+                            "unique_filename", true
                     )
             );
 
             String url = uploadResult.get("secure_url").toString();
-            log.info("File uploaded to Cloudinary: {}", url);
+            log.info("File uploaded to Cloudinary ({}): {}", resourceType, url);
 
             return url;
 
         } catch (Exception e) {
+            log.error("Cloudinary upload failed", e);
             throw new RuntimeException("File upload failed", e);
         }
     }
@@ -47,14 +57,16 @@ public class StorageService {
     // ✅ Delete file (optional)
     public void deleteFile(String fileUrl) {
         try {
+            // Improved publicId extraction to handle folders and resource types
             String publicId = extractPublicId(fileUrl);
+            String resourceType = fileUrl.contains("/raw/") ? "raw" : "image";
 
             cloudinary.uploader().destroy(
                     publicId,
-                    ObjectUtils.emptyMap()
+                    ObjectUtils.asMap("resource_type", resourceType)
             );
 
-            log.info("Deleted from Cloudinary: {}", publicId);
+            log.info("Deleted from Cloudinary ({}): {}", resourceType, publicId);
 
         } catch (Exception e) {
             log.error("Failed to delete file", e);
@@ -86,10 +98,20 @@ public class StorageService {
         return HexFormat.of().formatHex(digest.digest(bytes));
     }
 
-    // 🔧 helper
+    // 🔧 helper to extract the full public ID including folders
     private String extractPublicId(String url) {
-        String[] parts = url.split("/");
-        String fileWithExt = parts[parts.length - 1];
-        return fileWithExt.substring(0, fileWithExt.lastIndexOf("."));
+        // Example: https://res.cloudinary.com/demo/image/upload/v1234/folder/sub/id.pdf
+        // We need 'folder/sub/id'
+        String[] parts = url.split("/upload/");
+        if (parts.length < 2) return url;
+        
+        String pathAfterUpload = parts[1]; // v1234/folder/sub/id.pdf
+        String pathWithoutVersion = pathAfterUpload.substring(pathAfterUpload.indexOf("/") + 1); // folder/sub/id.pdf
+        
+        int dotIndex = pathWithoutVersion.lastIndexOf(".");
+        if (dotIndex > 0) {
+            return pathWithoutVersion.substring(0, dotIndex);
+        }
+        return pathWithoutVersion;
     }
 }
