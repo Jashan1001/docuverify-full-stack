@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { documentApi, verificationApi } from "../services/api";
+import { documentApi, verificationApi, fileApi } from "../services/api";
 import api from "../services/api";
 import StatusBadge from "../components/ui/StatusBadge";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
@@ -12,6 +12,7 @@ import {
   QrCode,
   ShieldCheck,
   ShieldX,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -71,6 +72,17 @@ export default function DocumentDetailPage() {
     };
   }, [qrUrl]);
 
+  const handleViewFile = () => {
+    if (!doc?.fileUrl) return;
+    const loadingToast = toast.loading('Opening document...');
+    fileApi.view(doc.fileUrl)
+      .then(() => toast.dismiss(loadingToast))
+      .catch(() => {
+        toast.dismiss(loadingToast);
+        toast.error('Failed to load document. It might have been uploaded before the storage migration.');
+      });
+  }
+
   if (loading) return <LoadingSpinner text="Loading document..." />;
   if (!doc) return null;
 
@@ -114,7 +126,15 @@ export default function DocumentDetailPage() {
               )}
             </div>
           </div>
-          <StatusBadge status={doc.status} />
+          <div className="flex flex-col items-end gap-3">
+             <StatusBadge status={doc.status} />
+             <button 
+                onClick={handleViewFile}
+                className="btn-outline flex items-center gap-2 py-1.5 px-3 text-[10px] font-mono tracking-widest uppercase"
+              >
+                <ExternalLink size={10} /> View File
+              </button>
+          </div>
         </div>
 
         {/* Metadata grid */}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { publicApi } from '../services/api'
-import { Shield, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react'
+import { publicApi, fileApi } from '../services/api'
+import { Shield, CheckCircle, XCircle, Clock, AlertTriangle, FileText, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
+import toast from 'react-hot-toast'
 
 const STATUS_CONFIG = {
   APPROVED: {
@@ -63,6 +64,17 @@ export default function PublicVerifyPage() {
     }
     verify()
   }, [token])
+
+  const handleViewFile = () => {
+    if (!result?.fileUrl) return;
+    const loadingToast = toast.loading('Opening document...');
+    fileApi.view(result.fileUrl)
+      .then(() => toast.dismiss(loadingToast))
+      .catch(() => {
+        toast.dismiss(loadingToast);
+        toast.error('Failed to load document. It might have been uploaded before the storage migration.');
+      });
+  }
 
   const config = result ? STATUS_CONFIG[result.status] || STATUS_CONFIG.UPLOADED : null
 
@@ -174,8 +186,20 @@ export default function PublicVerifyPage() {
                 </div>
               </div>
 
+              {/* View Document Action */}
+              <div className="p-6 border-b-3 border-ink bg-surface-1">
+                 <button 
+                  onClick={handleViewFile}
+                  className="w-full btn-primary flex items-center justify-center gap-3 py-4"
+                >
+                  <FileText size={18} />
+                  View Verified Document
+                  <ExternalLink size={14} />
+                </button>
+              </div>
+
               {/* Tamper notice */}
-              <div className="px-6 py-4 border-t-3 border-ink bg-surface-1 flex items-center gap-3">
+              <div className="px-6 py-4 flex items-center gap-3">
                 <Shield size={14} className="text-muted flex-shrink-0" />
                 <span className="font-mono text-xs text-muted">
                   This verification record is immutable and cryptographically sealed.
