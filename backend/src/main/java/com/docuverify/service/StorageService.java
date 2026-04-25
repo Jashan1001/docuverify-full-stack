@@ -23,13 +23,14 @@ public class StorageService {
         this.cloudinary = cloudinary;
     }
 
-    // ✅ Upload file to Cloudinary
+    // ✅ Upload file to Cloudinary (FIXED)
     public String uploadFile(MultipartFile file, String institutionId) {
         try {
-            // Use 'raw' for PDFs to avoid Cloudinary's image processing which can fail for some documents
+            String originalFilename = file.getOriginalFilename();
             String resourceType = "auto";
-            String contentType = file.getContentType();
-            if (contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
+
+            // 🔥 FIX: Use extension instead of contentType
+            if (originalFilename != null && originalFilename.toLowerCase().endsWith(".pdf")) {
                 resourceType = "raw";
             }
 
@@ -44,7 +45,7 @@ public class StorageService {
             );
 
             String url = uploadResult.get("secure_url").toString();
-            log.info("File uploaded to Cloudinary ({}): {}", resourceType, url);
+            log.info("Uploaded [{}]: {}", resourceType, url);
 
             return url;
 
@@ -54,10 +55,9 @@ public class StorageService {
         }
     }
 
-    // ✅ Delete file (optional)
+    // ✅ Delete file (handles both raw + image correctly)
     public void deleteFile(String fileUrl) {
         try {
-            // Improved publicId extraction to handle folders and resource types
             String publicId = extractPublicId(fileUrl);
             String resourceType = fileUrl.contains("/raw/") ? "raw" : "image";
 
@@ -73,7 +73,7 @@ public class StorageService {
         }
     }
 
-    // ✅ Read bytes from URL (for tamper detection)
+    // ✅ Read bytes from URL (used for tamper detection)
     public byte[] readFileBytes(String fileUrl) {
         try {
             URL url = new URL(fileUrl);
@@ -86,32 +86,41 @@ public class StorageService {
         }
     }
 
-    // ✅ SHA256 (unchanged)
+    // ✅ SHA256 for uploaded file
     public String computeSha256(MultipartFile file) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(file.getBytes());
         return HexFormat.of().formatHex(hash);
     }
 
+    // ✅ SHA256 for downloaded bytes
     public String computeSha256FromBytes(byte[] bytes) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return HexFormat.of().formatHex(digest.digest(bytes));
     }
 
-    // 🔧 helper to extract the full public ID including folders
+    // 🔧 Extract full publicId including folders
     private String extractPublicId(String url) {
-        // Example: https://res.cloudinary.com/demo/image/upload/v1234/folder/sub/id.pdf
-        // We need 'folder/sub/id'
-        String[] parts = url.split("/upload/");
-        if (parts.length < 2) return url;
-        
-        String pathAfterUpload = parts[1]; // v1234/folder/sub/id.pdf
-        String pathWithoutVersion = pathAfterUpload.substring(pathAfterUpload.indexOf("/") + 1); // folder/sub/id.pdf
-        
-        int dotIndex = pathWithoutVersion.lastIndexOf(".");
-        if (dotIndex > 0) {
-            return pathWithoutVersion.substring(0, dotIndex);
+        try {
+            // Example:
+            // https://res.cloudinary.com/demo/raw/upload/v1234/docuverify/inst/file.pdf
+
+            String[] parts = url.split("/upload/");
+            if (parts.length < 2) return url;
+
+            String pathAfterUpload = parts[1]; // v1234/docuverify/inst/file.pdf
+            String pathWithoutVersion = pathAfterUpload.substring(pathAfterUpload.indexOf("/") + 1); // docuverify/inst/file.pdf
+
+            int dotIndex = pathWithoutVersion.lastIndexOf(".");
+            if (dotIndex > 0) {
+                return pathWithoutVersion.substring(0, dotIndex);
+            }
+
+            return pathWithoutVersion;
+
+        } catch (Exception e) {
+            log.error("Failed to extract publicId from URL: {}", url, e);
+            return url;
         }
-        return pathWithoutVersion;
     }
 }
